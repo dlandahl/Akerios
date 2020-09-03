@@ -79,9 +79,9 @@ protmode_begin:
 
     jmp $
 
-msg_welcome:  db 'Welcome to the operating system!', 0
+msg_welcome:  db 'Welcome to the operating system', 0
 msg_load:     db 'Loading kernel', 0
-msg_protmode: db 'Entered x86 protected mode!', 0
+msg_protmode: db 'Entered x86 protected mode', 0
 boot_drive: db 0
 
 MARKER(bootsector_size)

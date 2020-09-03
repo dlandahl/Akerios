@@ -11,7 +11,7 @@ enable_protmode:
     mov cr0, eax
     jmp codeseg:protmode.init
 
-.msg: db 'Enabling the protected moderino', 0
+.msg: db 'Enabling protected mode', 0
 
 
 

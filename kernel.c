@@ -54,7 +54,8 @@ typedef enum {
 } Vga_Register;
 
 void vga_set_attribute(u8 register_index, size bit, bool unset) {
-    const u8 PAS       = 1 << 5;
+    const u8 PAS  = 1 << 5;
+    const u8 mask = 1 << bit;
 
     port_read_u8(input_status);
     const u8 address = port_read_u8(attribute_address);
@@ -62,8 +63,6 @@ void vga_set_attribute(u8 register_index, size bit, bool unset) {
     port_write_u8(attribute_address, register_index | PAS);
 
     u8 data = port_read_u8(data_read);
-    const u8 mask = 1 << bit;
-
     data = unset ? (data & ~mask)
                  : (data |  mask);
 
