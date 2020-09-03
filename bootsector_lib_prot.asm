@@ -69,7 +69,7 @@ print:
     jmp .get_position
 
 .colour: db vga_col_wb
-.rows: dw 0
+.rows: dw 13
 
 ; clear_screen:
 ;     pusha

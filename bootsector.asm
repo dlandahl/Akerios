@@ -32,23 +32,13 @@
     mov sp, bp
     mov ss, bp
 
-    mov bx, 0xfeef
+    mov bx, bootsector_size
     call print_hex
 
     mov bx, msg_welcome
     call print_ln
 
     call load_kernel
-
-    ; push ax
-    ; xor ax, ax
-    ; mov al, vbs_mode_text16
-    ; int vbs
-    ; pop ax
-
-;    xor ax, ax
-;    mov al, 0x3
-;    int vbs
 
     call enable_protmode
     jmp $
@@ -73,7 +63,7 @@ protmode_begin:
 
     mov [print.colour], byte vga_col_gb
     mov ebx, msg_protmode
-    ; call print
+    call print
 
     call kernel_offset
 
