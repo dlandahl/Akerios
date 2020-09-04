@@ -4,7 +4,7 @@ nasm -f bin bootsector.asm -o bootsector.bin
 nasm -f elf kernel_entry.asm -o kernel_entry.o
 
 printf "\n == Compiling kernel == \n"
-./i686-elf-tools-linux/bin/i686-elf-gcc -ffreestanding -c kernel.c -o kernel.o -masm=intel
+./i686-elf-tools-linux/bin/i686-elf-gcc -ffreestanding -c kernel.c -o kernel.o -masm=intel -mno-80387
 
 printf "\n == Linking kernel == \n"
 ld -o kernel.bin -Ttext 0x1000 kernel_entry.o kernel.o --oformat binary -m elf_i386 -e 0

@@ -48,7 +48,7 @@ load_kernel:
     call print_ln
 
     mov bx, kernel_offset
-    mov dh, 25
+    mov dh, 0x19
     mov dl, [boot_drive]
 
     call read_sectors
@@ -72,7 +72,7 @@ protmode_begin:
 msg_welcome:  db 'Welcome to the operating system', 0
 msg_load:     db 'Loading kernel', 0
 msg_protmode: db 'Entered x86 protected mode', 0
-boot_drive: db 0
+boot_drive:   db 0
 
 MARKER(bootsector_size)
 
