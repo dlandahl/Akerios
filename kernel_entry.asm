@@ -1,6 +1,6 @@
 
 [bits 32]
-[extern entry_point]
+[extern kernel_entry]
     mov eax, 0xfeedeef
-    call entry_point
+    call kernel_entry
     jmp $
