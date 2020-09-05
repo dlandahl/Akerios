@@ -54,9 +54,9 @@ load_kernel:
     call read_sectors
     ret
 
-%include "gdt.asm"
-%include "bootsector_lib_real.asm"
-%include "bootsector_lib_prot.asm"
+%include "./boot/gdt.asm"
+%include "./boot/bootsector_lib_real.asm"
+%include "./boot/bootsector_lib_prot.asm"
 
 protmode_begin:
     ; call clear_screen
