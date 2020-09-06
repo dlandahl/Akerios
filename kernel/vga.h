@@ -13,6 +13,8 @@ struct {
 } vga;
 
 void vga_set_attribute(u8, size, bool);
+void vga_hide_cursor();
+void vga_move_cursor();
 void vga_init();
 void vga_newline();
 void vga_tab();

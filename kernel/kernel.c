@@ -1,13 +1,21 @@
 
 #include "kernel.h"
 #include "interrupts.h"
+#include "keyboard.h"
 #include "vga.h"
 
 
-size strlen(u8* string) {
+size str_length(u8* string) {
     size n;
     for (n = 0; string[n]; n++);
     return n;
+}
+
+bool str_compare(u8* a, u8* b) {
+    for (size n = 0; a[n] || b[n]; n++)
+        if (a[n] != b[n]) return false;
+
+    return true;
 }
 
 void port_write(u16 port, u8 value) {
@@ -35,6 +43,7 @@ void io_wait() {
 }
 
 
+
 struct u64 {
     u32 lower, upper;
 } __attribute__((packed));
@@ -43,6 +52,11 @@ struct u64 rdtsc() {
     struct u64 tsc;
     asm("rdtsc" : "=d"(tsc.upper), "=a"(tsc.lower));
     return tsc;
+}
+
+
+
+void sprint_hex(u32 number) {
 }
 
 
@@ -96,16 +110,14 @@ void rand_set_seed(struct Rand* rand, u32 seed) {
 
 
 u8* msg_welcome =
-"  /$$$$$$          /$$                          /$$     /$$$$$$  /$$$$$$ \n"
-" /$$__  $$        | $$                         | $$    /$$__  $$/$$__  $$\n"
-"| $$  \\ $$ /$$$$$$| $$$$$$$  /$$$$$$  /$$$$$$$/$$$$$$ | $$  \\ $| $$  \\__/\n"
-"| $$$$$$$$/$$_____| $$__  $ /$$__  $$/$$_____|_  $$_/ | $$  | $|  $$$$$$ \n"
-"| $$__  $|  $$$$$$| $$  \\ $| $$$$$$$|  $$$$$$  | $$   | $$  | $$\\____  $$\n"
-"| $$  | $$\\____  $| $$  | $| $$_____/\\____  $$ | $$ /$| $$  | $$/$$  \\ $$\n"
-"| $$  | $$/$$$$$$$| $$$$$$$|  $$$$$$$/$$$$$$$/ |  $$$$|  $$$$$$|  $$$$$$/\n"
-"|__/  |__|_______/|_______/ \\_______|_______/   \\___/  \\______/ \\______/ \n"
-"\n  Welcome\n"
-"\n\t\tWe like to have fun here\n";
+"  /%%%%%%  /%%                           /%%  /%%%%%%   /%%%%%% \n"
+" /%%__  %%| %%                          |__/ /%%__  %% /%%__  %%\n"
+"| %%  \\ %%| %%   /%%  /%%%%%%   /%%%%%%  /%%| %%  \\ %%| %%  \\__/\n"
+"| %%%%%%%%| %%  /%%/ /%%__  %% /%%__  %%| %%| %%  | %%|  %%%%%% \n"
+"| %%__  %%| %%%%%%/ | %%%%%%%%| %%  \\__/| %%| %%  | %% \\____  %%\n"
+"| %%  | %%| %%_  %% | %%_____/| %%      | %%| %%  | %% /%%  \\ %%\n"
+"| %%  | %%| %% \\  %%|  %%%%%%%| %%      | %%|  %%%%%%/|  %%%%%%/\n"
+"|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/ \n\n";
 
 
 struct Stack {
@@ -127,113 +139,148 @@ u32 stack_pop(struct Stack* stack) {
 }
 
 
+
 __attribute__((interrupt))
 void isr_zero_division(struct Interrupt_Frame* frame) {
     vga_print("Zero division fault\n");
     asm("hlt");
 }
 
+size counter;
 __attribute__((interrupt))
 void isr_timer(struct Interrupt_Frame* frame) {
-    static size counter;
-    static size digit;
-    u8 buffer[2] = { 0 };
-    if_not (counter++ % 18) {
-        buffer[0] = '0' + (digit++ % 10);
-        vga_put(buffer, 5, 2);
-    }
+    counter++;
     pic_send_eoi(irq_time);
 }
 
-struct {
-    bool shift;
-    bool ctrl;
-    bool alt;
-} keyboard;
 
-#define key_release 0x80
+void wait() {
+    // asm("hlt");
+    // size start = counter;
+    // while (true) {
+    //     if (counter - start) break;
+    // };
+}
 
-enum Scan_Code {
-    key_none, key_esc,
-    key_num1, key_num2, key_num3, key_num4, key_num5, key_num6, key_num7, key_num8, key_num9, key_num0,
-    key_dash, key_equal, key_backspace, key_tab,
-    key_q, key_w, key_e, key_r, key_t, key_y, key_u, key_i, key_o, key_p,
-    key_open_bracket, key_closed_bracket, key_enter, key_ctrl,
-    key_a, key_s, key_d, key_f, key_g, key_h, key_j, key_k, key_l,
-    key_semicolon, key_apostrophe, key_backtick, key_lshift, key_backslash,
-    key_z, key_x, key_c, key_v, key_b, key_n, key_m,
-    key_comma, key_period, key_forwardslash, key_rshift, key_asterisk, key_alt, key_space, key_capslock,
-    key_f1, key_f2, key_f3, key_f4, key_f5, key_f6, key_f7, key_f8, key_f9, key_f10,
-    key_numlock
-};
+void random() {
+    struct Rand rand;
+    rand_set_seed(&rand, rdtsc().lower);
+    size value = rand_next_int(&rand);
+    vga_print_hex(value);
+}
 
-__attribute__((interrupt))
-void isr_keyboard(struct Interrupt_Frame* frame) {
+void time() {
+    vga_print("Lower: ");
+    vga_print_hex(rdtsc().lower);
+    vga_print("\nUpper: ");
+    vga_print_hex(rdtsc().upper);
+}
 
-    static const u8 scan_code[] = "  1234567890-= \tqwertyuiop[]  asdfghjkl;'` \\zxcvbnm,./ *  ";
+void hello_world() {
+    vga_print("Hello, World!");
+}
 
-    u8 key_code = port_read(0x60);
+void clear_screen() {
+    vga_clear();
+    vga_print(msg_welcome);
+    vga_print("=== SHELL ============================================================");
+}
 
-    switch (key_code) {
-    case key_none:
-    case key_esc:
-    case 0x1c:
-    case 0x1d:
-        break;
-
-    case key_lshift:
-    case key_rshift:
-        keyboard.shift = true;
-        break;
-
-    case key_lshift + key_release:
-    case key_rshift + key_release:
-        keyboard.shift = false;
-        break;
-
-    case key_backspace:
-        vga.cursor--;
-        vga_print_char(' ');
-        vga.cursor--;
-        break;
-
-    default:
-        if (key_code >= 0x80) break;
-        u8 character = scan_code[key_code];
-        if (keyboard.shift) {
-            if (character >= '0' && character <= '9') character -= 16;
-            else character -= 32;
-        }
-        vga_print_char(character);
+void colour() {
+    struct u64 tsc;
+    asm("rdtsc" : "=d"(tsc.upper), "=a"(tsc.lower));
+    u8 x = tsc.lower & 0xff;
+    vga.attribute = x;
+    for (size n = 0; n < vga.framebuffer_size; n++) {
+        vga.framebuffer[n*2+1] = x;
     }
-
-    pic_send_eoi(irq_kbd);
-    return;
 }
 
 
+struct {
+    u8 command_buffer[vga_cols - 2];
+    size length;
+} shell;
 
-bool shell;
+u8* shell_commands[6] = {
+    "hello", "clear", "random", "rdtsc", "colour"
+};
+
+void(*shell_routines[])() = {
+    &hello_world, &clear_screen, &random, &time, &colour, &wait
+};
+
+void shell_submit_command() {
+
+//    vga_newline();
+//    vga_print("Command is:");
+//    vga_print(shell.command_buffer);
+
+    bool found = false;
+    for (size n = 0; n < sizeof(shell_commands); n++) {
+        if (str_compare(shell.command_buffer, shell_commands[n])) {
+            vga_newline();
+            shell_routines[n]();
+            found = true;
+            break;
+        }
+    }
+
+    if (!found && shell.length) {
+        vga_print("\nCommand not recognised: ");
+        vga_print(shell.command_buffer);
+    }
+
+    for (size n = 0; n < sizeof(shell.command_buffer); n++)
+        shell.command_buffer[n] = 0;
+
+    shell.length = 0;
+    vga_newline();
+    vga_print("# ");
+    vga_move_cursor(vga.cursor);
+}
+
+void shell_keypress(struct Kbd_Key key) {
+    if (key.is_release) return;
+
+    if (key.ascii) {
+        if (shell.length > 65) return;
+        vga_print_char(key.ascii);
+        shell.command_buffer[shell.length++] = key.ascii;
+        vga_move_cursor(vga.cursor);
+    }
+
+    else switch (key.scan_code) {
+        case key_backspace:
+            if (vga.cursor % vga_cols <= 2) break;
+            vga.cursor--;
+            vga_print_char(' ');
+            vga.cursor--;
+            shell.length--;
+            shell.command_buffer[shell.length] = 0;
+            vga_move_cursor(vga.cursor);
+            break;
+        case key_enter:
+            shell_submit_command();
+    }
+    return;
+
+}
 
 void kernel_entry() {
+    counter = 0;
     vga_init();
+    vga.attribute = 0x4f;
     idt_init();
-//  pit_set_divisor(0xffffff);
     pic_init();
-//
-//  shell = true;
-//
-    idt_register_entry(&isr_timer, 0x20);
-    pic_mask(irq_time, true);
-    idt_register_entry(&isr_keyboard, 0x21);
-    pic_mask(irq_kbd,  true);
-//
-    vga_clear();
-    vga_print(msg_welcome);
-//
-//  u32 value = 0xabcd1234;
-//  vga_print_hex(value);
-//  vga_newline();
+    // vga_hide_cursor();
 
-    while (true);
+    idt_add_entry(&isr_timer, 0x20);
+    pic_mask(irq_time, true);
+
+    clear_screen();
+    vga_print("\n# ");
+    vga_move_cursor(vga.cursor);
+    kbd_init();
+    kbd_set_handler(&shell_keypress);
 }

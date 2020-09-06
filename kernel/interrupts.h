@@ -3,7 +3,7 @@
 
 struct Interrupt_Frame;
 
-void idt_register_entry(void*, size);
+void idt_add_entry(void*, size);
 void idt_init();
 
 enum {

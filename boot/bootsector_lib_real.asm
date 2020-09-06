@@ -9,11 +9,6 @@ real_print:
     inc bx
     int vbs
 
-    ; pusha
-    ; mov cx, 1
-    ; call sleep
-    ; popa
-
     jmp .loop
 
 .end:
@@ -48,14 +43,15 @@ lfcr: db 0xa, 0xd, 0
 ; 
 ; 
 
-sleep:
-    push ax
-    mov ah, 0x86
-    int 0x15
-    pop ax
-    ret
-; 
 
+;sleep:
+;    push ax
+;    mov ah, 0x86
+;    int 0x15
+;    pop ax
+;    ret
+; 
+;
 
 print_hex:
     mov cx, bx
@@ -98,21 +94,22 @@ read_sectors:
     mov cl, 2
 
     int dbs
+    pop dx
     jc .error
 
-    pop dx
     cmp dh, al
     jne .error
-    ret
 
+    ret
 .error:
     mov bx, ax
     call print_hex
     mov bx, .msg_error
-    call real_print
-    jmp $
+    call print_ln
+    ret
+    ; jmp $
 
-.msg_error: db 'Failed to read some stuff on disk', 0
+.msg_error: db '6', 0
 
 
 

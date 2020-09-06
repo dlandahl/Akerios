@@ -22,23 +22,37 @@
 [org 0x7c00]
 
 [bits 16]
+    jmp 0:start
+start:
     xor ax, ax
     mov es, ax
     mov ds, ax
+    mov ss, ax
 
     mov [boot_drive], dl
 
-    mov bp, 0x8000
+    mov bp, 0x7c00
     mov sp, bp
-    mov ss, bp
 
     mov bx, bootsector_size
     call print_hex
 
+    call dummy
+
     mov bx, msg_welcome
-    call print_ln
+    call real_print
+
+    mov bx, msg_welcome2
+    call real_print
+
+;    mov bx, msg_welcome2
+;    call print_ln
+;
+;    mov bx, msg_welcome
+;    call print_ln
 
     call load_kernel
+    ; jmp $
 
     call enable_protmode
     jmp $
@@ -52,6 +66,15 @@ load_kernel:
     mov dl, [boot_drive]
 
     call read_sectors
+
+    mov bx, ax
+    call print_hex
+
+    mov bx, msg_loaded
+    call print_ln
+    ret
+
+dummy:
     ret
 
 %include "./boot/gdt.asm"
@@ -65,18 +88,23 @@ protmode_begin:
     mov ebx, msg_protmode
     call print
 
+    ; jmp $
     call kernel_offset
 
-    jmp $
 
-msg_welcome:  db 'Welcome to the operating system', 0
-msg_load:     db 'Loading kernel', 0
-msg_protmode: db 'Entered x86 protected mode', 0
+msg_welcome:  db '1', 0
+msg_welcome2: db '2', 0
+msg_load:     db '3', 0
+msg_protmode: db '4', 0
+msg_loaded:   db '5', 0
 boot_drive:   db 0
 
 MARKER(bootsector_size)
 
-times 510-($-$$) db 0
+times 0x1be-($-$$) db 0
+
+    
+times 0x1fe-($-$$) db 0
 dw 0xaa55
 
 MARKER(program_size)

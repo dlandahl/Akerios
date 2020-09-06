@@ -24,6 +24,18 @@ void vga_set_attribute(u8 register_index, size bit, bool unset) {
     port_write(vga_reg_attribute_address, address);
 }
 
+void vga_hide_cursor() {
+    port_write(0x3d4, 0x0a);
+    port_write(0x3d5, 0x20);
+}
+
+void vga_move_cursor(u32 loc) {
+    port_write(0x3d4, 0x0f);
+    port_write(0x3d5, (u8) loc);
+    port_write(0x3d4, 0x0e);
+    port_write(0x3d5, (u8) (loc >> 8));
+}
+
 void vga_init() {
     vga.cursor = 0;
     vga.attribute = 0x83;

@@ -25,7 +25,7 @@ struct {
 
 struct Idt_Entry idt[0x100] = { };
 
-void idt_register_entry(void* addr, size index) {
+void idt_add_entry(void* addr, size index) {
     struct Idt_Entry entry;
     entry.offset_1  = (u32) addr;
     entry.offset_2  = (u32) addr >> 16;
