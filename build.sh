@@ -10,11 +10,11 @@ printf "\n == Linking kernel == \n"
 ld -o kernel.bin -Ttext 0x1000 kernel_entry.o keyboard.o vga.o interrupts.o kernel.o --oformat binary -m elf_i386 -e 0
 
 printf "\n == Concatenating bootsector and kernel == \n"
-cat bootsector.bin kernel.bin > AsbestOS
+cat bootsector.bin kernel.bin > AkeriOS
 
 printf "\n == Cleaning up == \n"
 rm *.o
 rm *.bin
 
 printf "\n == Running == \n"
-qemu-system-x86_64 -drive format=raw,file=AsbestOS
+qemu-system-x86_64 -drive format=raw,file=AkeriOS

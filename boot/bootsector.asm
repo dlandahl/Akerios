@@ -37,22 +37,10 @@ start:
     mov bx, bootsector_size
     call print_hex
 
-    call dummy
-
     mov bx, msg_welcome
     call real_print
 
-    mov bx, msg_welcome2
-    call real_print
-
-;    mov bx, msg_welcome2
-;    call print_ln
-;
-;    mov bx, msg_welcome
-;    call print_ln
-
     call load_kernel
-    ; jmp $
 
     call enable_protmode
     jmp $
@@ -74,36 +62,27 @@ load_kernel:
     call print_ln
     ret
 
-dummy:
-    ret
-
 %include "./boot/gdt.asm"
 %include "./boot/bootsector_lib_real.asm"
 %include "./boot/bootsector_lib_prot.asm"
 
 protmode_begin:
-    ; call clear_screen
 
     mov [print.colour], byte vga_col_gb
     mov ebx, msg_protmode
     call print
 
-    ; jmp $
     call kernel_offset
 
 
-msg_welcome:  db '1', 0
-msg_welcome2: db '2', 0
-msg_load:     db '3', 0
-msg_protmode: db '4', 0
-msg_loaded:   db '5', 0
+msg_welcome:  db 'Welcome, booting.', 0
+msg_load:     db 'Loading Kernel', 0
+msg_protmode: db 'Entering protected mode', 0
+msg_loaded:   db 'Loaded Kernel', 0
 boot_drive:   db 0
 
 MARKER(bootsector_size)
 
-times 0x1be-($-$$) db 0
-
-    
 times 0x1fe-($-$$) db 0
 dw 0xaa55
 

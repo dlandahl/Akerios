@@ -25,7 +25,6 @@ print_ln:
 lfcr: db 0xa, 0xd, 0
 
 
-; 
 ; read_ch:
 ;     xor ax, ax
 ;     mov ah, kbs_read
@@ -40,18 +39,15 @@ lfcr: db 0xa, 0xd, 0
 ;     ret
 ; 
 ; .char: db 0
-; 
-; 
 
 
-;sleep:
-;    push ax
-;    mov ah, 0x86
-;    int 0x15
-;    pop ax
-;    ret
-; 
-;
+; sleep:
+;     push ax
+;     mov ah, 0x86
+;     int 0x15
+;     pop ax
+;     ret
+
 
 print_hex:
     mov cx, bx
