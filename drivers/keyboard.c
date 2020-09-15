@@ -1,6 +1,6 @@
 
-#include "kernel.h"
-#include "interrupts.h"
+#include "../kernel/kernel.h"
+#include "../kernel/interrupts.h"
 #include "keyboard.h"
 
 struct {
@@ -11,7 +11,10 @@ struct {
 
 #define kbd_release 0x80
 
-static const u8 kbd_scan_table[62] = "\0#1234567890-=\0\tqwertyuiop[]\0\0asdfghjkl;'`\0\\zxcvbnm,./\0*\0 ";
+static const u8 kbd_scan_table[62]
+    = "\0#1234567890-=\0\tqwertyuiop[]\0\0asdfghjkl;'`\0\\zxcvbnm,./\0*\0 ";
+static const u8 kbd_scan_table_shifted[62]
+    = "\0#!@#$%^&*()_+\0\0QWERTYUIOP{}\0\0ASDFGHJKL:\"~\0|ZXCVBNM<>?\0*\0 ";
 
 bool kbd_key_is_number(enum Kbd_Scan_Code code) {
     u8 character = kbd_scan_table[code];
@@ -59,17 +62,14 @@ void kbd_isr(struct Interrupt_Frame* frame) {
 
     key.scan_code = scan_code;
 
-    if (key.scan_code < sizeof(kbd_scan_table))
-        key.ascii = kbd_scan_table[key.scan_code];
+    if (scan_code < sizeof(kbd_scan_table)) {
+        if (kbd_state.shift) key.ascii = kbd_scan_table_shifted[scan_code];
+        else                 key.ascii = kbd_scan_table[scan_code];
+    }
     else key.ascii = 0;
 
-    if (kbd_key_is_number(scan_code)) {
+    if (kbd_key_is_number(scan_code) || kbd_key_is_letter(scan_code)) {
         key.is_alphanumeric = true;
-        if (kbd_state.shift) key.ascii -= 16;
-    }
-    else if (kbd_key_is_letter(scan_code)) {
-        key.is_alphanumeric = true;
-        if (kbd_state.shift) key.ascii -= 32;
     }
     else key.is_alphanumeric = false;
 

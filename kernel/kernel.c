@@ -1,8 +1,10 @@
 
 #include "kernel.h"
+#include "memory.h"
 #include "interrupts.h"
-#include "keyboard.h"
-#include "vga.h"
+#include "../drivers/keyboard.h"
+#include "../drivers/vga.h"
+#include "shell.h"
 
 
 size str_length(u8* string) {
@@ -56,11 +58,6 @@ struct u64 rdtsc() {
 
 
 
-void sprint_hex(u32 number) {
-}
-
-
-
 #define pit_dividend 1193182
 
 enum {
@@ -93,8 +90,7 @@ u32 rand_next_int(struct Rand* rand) {
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
-    rand->state = x;
-    return x;
+    return rand->state = x;
 }
 
 u32 rand_range(struct Rand* rand, u32 min, u32 max) {
@@ -120,167 +116,52 @@ u8* msg_welcome =
 "|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/ \n\n";
 
 
-struct Stack {
-    u32 top, bottom;
-};
-
-void stack_init(struct Stack* stack, u32 location) {
-    stack->top = stack->bottom = location;
-}
-
-void stack_push(struct Stack* stack, u32 value) {
-    **(u32**) (&stack->top) = value;
-    stack->top += 4;
-}
-
-u32 stack_pop(struct Stack* stack) {
-    stack->top -= 4;
-    return **(u32**) (&stack->top);
-}
+u8* current_program = "Shell";
 
 
 
 __attribute__((interrupt))
 void isr_zero_division(struct Interrupt_Frame* frame) {
-    vga_print("Zero division fault\n");
+    vga_print("\nZero division fault, halting.\n");
     asm("hlt");
 }
 
-size counter;
 __attribute__((interrupt))
 void isr_timer(struct Interrupt_Frame* frame) {
-    counter++;
     pic_send_eoi(irq_time);
-}
-
-
-void wait() {
-    // asm("hlt");
-    // size start = counter;
-    // while (true) {
-    //     if (counter - start) break;
-    // };
-}
-
-void random() {
-    struct Rand rand;
-    rand_set_seed(&rand, rdtsc().lower);
-    size value = rand_next_int(&rand);
-    vga_print_hex(value);
-}
-
-void time() {
-    vga_print("Lower: ");
-    vga_print_hex(rdtsc().lower);
-    vga_print("\nUpper: ");
-    vga_print_hex(rdtsc().upper);
-}
-
-void hello_world() {
-    vga_print("Hello, World!");
 }
 
 void clear_screen() {
     vga_clear();
     vga_print(msg_welcome);
-    vga_print("=== SHELL ============================================================");
-}
-
-void colour() {
-    struct u64 tsc;
-    asm("rdtsc" : "=d"(tsc.upper), "=a"(tsc.lower));
-    u8 x = tsc.lower & 0xff;
-    vga.attribute = x;
-    for (size n = 0; n < vga.framebuffer_size; n++) {
-        vga.framebuffer[n*2+1] = x;
-    }
+    vga_print("=== ");
+    vga_print(current_program);
+    vga_print_char(' ');
+    for (int n = 0; n < vga_cols - 5 - str_length(current_program); n++)
+        vga_print_char('=');
 }
 
 
-struct {
-    u8 command_buffer[vga_cols - 2];
-    size length;
-} shell;
-
-u8* shell_commands[6] = {
-    "hello", "clear", "random", "rdtsc", "colour"
-};
-
-void(*shell_routines[])() = {
-    &hello_world, &clear_screen, &random, &time, &colour, &wait
-};
-
-void shell_submit_command() {
-
-//    vga_newline();
-//    vga_print("Command is:");
-//    vga_print(shell.command_buffer);
-
-    bool found = false;
-    for (size n = 0; n < sizeof(shell_commands); n++) {
-        if (str_compare(shell.command_buffer, shell_commands[n])) {
-            vga_newline();
-            shell_routines[n]();
-            found = true;
-            break;
-        }
-    }
-
-    if (!found && shell.length) {
-        vga_print("\nCommand not recognised: ");
-        vga_print(shell.command_buffer);
-    }
-
-    for (size n = 0; n < sizeof(shell.command_buffer); n++)
-        shell.command_buffer[n] = 0;
-
-    shell.length = 0;
-    vga_newline();
-    vga_print("# ");
-    vga_move_cursor(vga.cursor);
-}
-
-void shell_keypress(struct Kbd_Key key) {
-    if (key.is_release) return;
-
-    if (key.ascii) {
-        if (shell.length > 65) return;
-        vga_print_char(key.ascii);
-        shell.command_buffer[shell.length++] = key.ascii;
-        vga_move_cursor(vga.cursor);
-    }
-
-    else switch (key.scan_code) {
-        case key_backspace:
-            if (vga.cursor % vga_cols <= 2) break;
-            vga.cursor--;
-            vga_print_char(' ');
-            vga.cursor--;
-            shell.length--;
-            shell.command_buffer[shell.length] = 0;
-            vga_move_cursor(vga.cursor);
-            break;
-        case key_enter:
-            shell_submit_command();
-    }
-    return;
-
-}
 
 void kernel_entry() {
-    counter = 0;
+    heap_init();
     vga_init();
-    vga.attribute = 0x4f;
+    vga.attribute = 0x0b;
     idt_init();
     pic_init();
     // vga_hide_cursor();
 
-    idt_add_entry(&isr_timer, 0x20);
-    pic_mask(irq_time, true);
+    // idt_add_entry(&isr_timer, 0x20);
+    idt_add_entry(&isr_zero_division, 0x0);
+    // pic_mask(irq_time, true);
 
     clear_screen();
-    vga_print("\n# ");
-    vga_move_cursor(vga.cursor);
+    // vga_print(msg_welcome);
     kbd_init();
-    kbd_set_handler(&shell_keypress);
+    shell_init();
+
+    // u16* a = heap_allocate_typed(u16, 1);
+    // int* b = heap_allocate_typed(int, 32);
+    // vga_print_hex(cast(int, b));
+    while (true);
 }

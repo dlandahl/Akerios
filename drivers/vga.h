@@ -23,3 +23,24 @@ void vga_print(u8*);
 void vga_put(u8*, size, size);
 void vga_print_char(u8);
 void vga_print_hex(u32);
+
+enum Vga_Colour {
+    vga_black,
+    vga_blue,
+    vga_green,
+    vga_cyan,
+    vga_red,
+    vga_magenta,
+    vga_brown,
+    vga_light_grey,
+    vga_grey,
+    vga_light_blue,
+    vga_light_green,
+    vga_light_cyan,
+    vga_light_red,
+    vga_light_magenta,
+    vga_light_yellow,
+    vga_white,
+}
+
+static const vga_bright = 1 << 7;

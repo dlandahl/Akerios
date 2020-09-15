@@ -1,5 +1,5 @@
 
-#include "kernel.h"
+#include "../kernel/kernel.h"
 #include "vga.h"
 
 enum {

@@ -36,7 +36,7 @@ void idt_add_entry(void* addr, size index) {
 }
 
 void idt_init() {
-    idt_desc.limit = 0x100 * sizeof(struct Idt_Entry);
+    idt_desc.limit = 0x100 * size_of(struct Idt_Entry);
     idt_desc.base  = (u32) idt;
 
     asm("lidt %0" :: "m"(idt_desc));

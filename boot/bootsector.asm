@@ -1,14 +1,10 @@
 
 %define vbs 0x10
 %define vbs_tty      0x0e
-%define vbs_setpixel 0x0c
-%define vbs_mode_graphic4 0x12
-%define vbs_mode_text16   0x03
 
 %define vga_address 0xb8000
 %define vga_col_wb  0x0f
 %define vga_col_gb  0x0a
-%define vga_col_rw  0xf4
 
 %define kbs 0x16
 %define kbs_read 0x00
@@ -17,8 +13,8 @@
 %define dbs_read_sector 0x02
 
 %define MARKER(name) name equ $ - 0x7c00
-
 %define kernel_offset 0x1000
+
 [org 0x7c00]
 
 [bits 16]
@@ -37,6 +33,8 @@ start:
     mov bx, bootsector_size
     call print_hex
 
+    call dummy
+
     mov bx, msg_welcome
     call real_print
 
@@ -50,7 +48,7 @@ load_kernel:
     call print_ln
 
     mov bx, kernel_offset
-    mov dh, 0x19
+    mov dh, 0x35
     mov dl, [boot_drive]
 
     call read_sectors
@@ -60,6 +58,9 @@ load_kernel:
 
     mov bx, msg_loaded
     call print_ln
+    ret
+
+dummy:
     ret
 
 %include "./boot/gdt.asm"
@@ -75,10 +76,10 @@ protmode_begin:
     call kernel_offset
 
 
-msg_welcome:  db 'Welcome, booting.', 0
-msg_load:     db 'Loading Kernel', 0
-msg_protmode: db 'Entering protected mode', 0
-msg_loaded:   db 'Loaded Kernel', 0
+msg_welcome:  db 'Welcome to the OS', 0
+msg_load:     db 'Loading kernel', 0
+msg_protmode: db 'Entered protected mode', 0
+msg_loaded:   db 'Loaded kernel', 0
 boot_drive:   db 0
 
 MARKER(bootsector_size)

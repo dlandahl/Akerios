@@ -1,17 +1,12 @@
 
 [bits 16]
 enable_protmode:
-    mov bx, .msg
-    call print_ln
-
     cli
     lgdt [gdt_desc]
     mov eax, cr0
     or  eax, 1 << 0
     mov cr0, eax
     jmp codeseg:protmode.init
-
-.msg: db '7', 0
 
 
 
