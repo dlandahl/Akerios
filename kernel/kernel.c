@@ -1,10 +1,10 @@
 
-#include "kernel.h"
-#include "memory.h"
-#include "interrupts.h"
-#include "../drivers/keyboard.h"
-#include "../drivers/vga.h"
-#include "shell.h"
+#include "kernel/kernel.h"
+#include "kernel/memory.h"
+#include "kernel/interrupts.h"
+#include "kernel/shell.h"
+#include "drivers/keyboard.h"
+#include "drivers/vga.h"
 
 
 size str_length(u8* string) {
@@ -45,10 +45,6 @@ void io_wait() {
 }
 
 
-
-struct u64 {
-    u32 lower, upper;
-} __attribute__((packed));
 
 struct u64 rdtsc() {
     struct u64 tsc;
@@ -126,8 +122,24 @@ void isr_zero_division(struct Interrupt_Frame* frame) {
     asm("hlt");
 }
 
+
+void timer_kbd_void(struct Kbd_Key key) {
+    return;
+}
+
+volatile size counter;
+void pause(size ticks) {
+    ticks *= 11932;
+    size freeze = counter;
+    Kbd_Handler old_handler = kbd_get_handler();
+    kbd_set_handler(&timer_kbd_void);
+    while (counter - freeze < ticks);
+    kbd_set_handler(old_handler);
+}
+
 __attribute__((interrupt))
 void isr_timer(struct Interrupt_Frame* frame) {
+    counter++;
     pic_send_eoi(irq_time);
 }
 
@@ -151,14 +163,17 @@ void kernel_entry() {
     pic_init();
     // vga_hide_cursor();
 
-    // idt_add_entry(&isr_timer, 0x20);
     idt_add_entry(&isr_zero_division, 0x0);
-    // pic_mask(irq_time, true);
+    idt_add_entry(&isr_timer, 0x20);
+    pic_mask(irq_time, true);
 
-    clear_screen();
-    // vga_print(msg_welcome);
     kbd_init();
+    clear_screen();
     shell_init();
+
+    pit_set_divisor(100);
+
+    // vga_print(msg_welcome);
 
     // u16* a = heap_allocate_typed(u16, 1);
     // int* b = heap_allocate_typed(int, 32);

@@ -3,10 +3,7 @@
 
 #include "kernel.h"
 
-struct Heap_Header {
-    struct Heap_Header* next_header;
-    bool free;
-};
+struct Heap_Header;
 
 void heap_init();
 void* get_found_block(struct Heap_Header*, size);

@@ -1,12 +1,12 @@
 
-#include "../kernel/kernel.h"
-#include "../kernel/interrupts.h"
-#include "keyboard.h"
+#include "kernel/kernel.h"
+#include "kernel/interrupts.h"
+#include "drivers/keyboard.h"
 
 struct {
     bool shift;
     bool ctrl;
-    void(*handler)(struct Kbd_Key);
+    Kbd_Handler handler;
 } kbd_state;
 
 #define kbd_release 0x80
@@ -62,7 +62,7 @@ void kbd_isr(struct Interrupt_Frame* frame) {
 
     key.scan_code = scan_code;
 
-    if (scan_code < sizeof(kbd_scan_table)) {
+    if (scan_code < size_of(kbd_scan_table)) {
         if (kbd_state.shift) key.ascii = kbd_scan_table_shifted[scan_code];
         else                 key.ascii = kbd_scan_table[scan_code];
     }
@@ -87,6 +87,10 @@ void kbd_init() {
     pic_mask(irq_kbd, true);
 }
 
-void kbd_set_handler(void(*handler)(struct Kbd_Key)) {
+void kbd_set_handler(Kbd_Handler handler) {
     kbd_state.handler = handler;
+}
+
+Kbd_Handler kbd_get_handler() {
+    return kbd_state.handler;
 }

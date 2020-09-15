@@ -1,6 +1,6 @@
 
-#include "kernel.h"
-#include "interrupts.h"
+#include "kernel/kernel.h"
+#include "kernel/interrupts.h"
 
 struct Interrupt_Frame {
     u32 ip;

@@ -1,6 +1,11 @@
 
-#include "kernel.h"
-#include "memory.h"
+#include "kernel/kernel.h"
+#include "kernel/memory.h"
+
+struct Heap_Header {
+    struct Heap_Header* next_header;
+    bool free;
+};
 
 struct Heap_Header* heap_first_header = (struct Heap_Header*) 0x4000;
 
@@ -40,5 +45,7 @@ void* heap_allocate(size bytes) {
 }
 
 void heap_deallocate(void* block) {
-
+    // Todo: don't fragment
+    struct Heap_Header* header = block - size_of(struct Heap_Header);
+    header->free = true;
 }

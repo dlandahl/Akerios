@@ -1,9 +1,9 @@
 
-#include "kernel.h"
-#include "memory.h"
-#include "interrupts.h"
-#include "../drivers/vga.h"
-#include "../drivers/keyboard.h"
+#include "kernel/kernel.h"
+#include "kernel/memory.h"
+#include "kernel/interrupts.h"
+#include "drivers/vga.h"
+#include "drivers/keyboard.h"
 
 enum Token_Type {
     token_name,

@@ -1,6 +1,6 @@
 
-#include "../kernel/kernel.h"
-#include "vga.h"
+#include "kernel/kernel.h"
+#include "drivers/vga.h"
 
 enum {
     vga_reg_input_status      = 0x3da,
