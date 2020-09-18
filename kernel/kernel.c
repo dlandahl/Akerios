@@ -191,12 +191,14 @@ void kernel_entry() {
     vga_newline();
 
     u32* buffer = heap_allocate_typed(u32, 128);
-    ata_lba_read(128, 1, buffer);
+    buffer[10] = 0xbadbeef0;
+    ata_lba_write(buffer, 128, 1);
 
-    vga_print_hex(buffer[0]);
-    vga_newline();
-    vga_print_byte(cast(u8, ata_get_error()));
-    vga_newline();
-    vga_print_byte(cast(u8, ata_get_status()));
+    u32* buffer_2 = heap_allocate_typed(u32, 128);
+
+    vga_print_hex(buffer_2[10]);    vga_newline();
+    ata_lba_read(buffer_2, 128, 1);
+    vga_print_hex(buffer_2[10]);    vga_newline();
+
     while (true);
 }

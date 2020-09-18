@@ -50,8 +50,9 @@ internal void kbd_isr(struct Interrupt_Frame* frame) {
             break;
 
         case key_ctrl + kbd_release:
-            kbd_state.ctrl = false;
+            kbd_state.ctrl = false; 
             break;
+        default: break;
     }
 
     if (scan_code >= kbd_release) {
