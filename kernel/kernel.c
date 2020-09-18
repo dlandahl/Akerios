@@ -188,10 +188,15 @@ void kernel_entry() {
     vga_clear();
     vga_hide_cursor();
     vga_print(msg_welcome);
+    vga_newline();
 
     u32* buffer = heap_allocate_typed(u32, 128);
     ata_lba_read(128, 1, buffer);
 
     vga_print_hex(buffer[0]);
+    vga_newline();
+    vga_print_byte(cast(u8, ata_get_error()));
+    vga_newline();
+    vga_print_byte(cast(u8, ata_get_status()));
     while (true);
 }

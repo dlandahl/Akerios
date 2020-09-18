@@ -39,7 +39,7 @@ void vga_move_cursor(u32 loc) {
 void vga_init() {
     vga.cursor = 0;
     vga.attribute = 0x83;
-    vga.framebuffer = (u8*) 0xb8000;
+    vga.framebuffer = (i8*) 0xb8000;
     vga.framebuffer_size = vga_cols * vga_rows * sizeof(u16);
 
     vga_set_attribute(0x10, 3, true);
@@ -64,7 +64,7 @@ void vga_clear() {
     vga.cursor = 0;
 }
 
-void vga_print(u8* message) {
+void vga_print(i8* message) {
     for (size n = 0; message[n]; n++) {
         size index = vga.cursor * 2;
 
@@ -79,26 +79,35 @@ void vga_print(u8* message) {
     }
 }
 
-void vga_put(u8* message, size col, size row) {
+void vga_put(i8* message, size col, size row) {
     size old = vga.cursor;
     vga.cursor = vga_cols * row + col;
     vga_print(message);
     vga.cursor = old;
 }
 
-void vga_print_char(u8 character) {
-    static u8 buffer[2] = { 0 };
+void vga_print_char(i8 character) {
+    static i8 buffer[2] = { 0 };
     buffer[0] = character;
     vga_print(buffer);
 }
 
 void vga_print_hex(u32 number) {
     u8 buffer[9] = { 0 };
-    const static u8 hex_digits[] = "0123456789abcdef";
+    const static i8 hex_digits[] = "0123456789abcdef";
     for (size n = 0; n < 8; n++) {
         buffer[7-n] = hex_digits[number & 0xf];
         number >>= 4;
     }
     vga_print("0x");
     vga_print(buffer);
+}
+
+void vga_print_byte(u8 number) {
+    vga_print("0b");
+    u8 mask = 1 << 7;
+    for (size n = 0; n < 8; n++) {
+        vga_print_char((number & mask) ? '1' : '0');
+        mask >>= 1;
+    }
 }

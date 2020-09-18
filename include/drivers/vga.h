@@ -19,10 +19,11 @@ void vga_init();
 void vga_newline();
 void vga_tab();
 void vga_clear();
-void vga_print(u8*);
-void vga_put(u8*, size, size);
-void vga_print_char(u8);
+void vga_print(i8*);
+void vga_put(i8*, size, size);
+void vga_print_char(i8);
 void vga_print_hex(u32);
+void vga_print_byte(u8);
 
 enum Vga_Colour {
     vga_black,
@@ -41,6 +42,4 @@ enum Vga_Colour {
     vga_light_magenta,
     vga_light_yellow,
     vga_white,
-}
-
-static const vga_bright = 1 << 7;
+};

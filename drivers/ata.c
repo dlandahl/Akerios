@@ -24,22 +24,15 @@ enum Ata_Cmd {
     ata_cmd_write   = 0x30,
 };
 
-enum Ata_Status {
-    ata_err  = 1 << 0,
-    ata_idx  = 1 << 1,
-    ata_corr = 1 << 2,
-    ata_drq  = 1 << 3,
-    ata_srv  = 1 << 4,
-    ata_df   = 1 << 5,
-    ata_rdy  = 1 << 6,
-    ata_bsy  = 1 << 7,
-};
-
 int ata_chs_to_lba(struct Ata_Drive drive, struct Ata_Chs_Address addr) {
     return (addr.c * drive.hpc + addr.h) * drive.spt + (addr.s - 1);
 }
 
-void ata_lba_read(size logical_address, u8 sectors_to_read, void* buffer) {
+internal inline void wait_until_not_busy() {
+    while (ata_get_status() & ata_bsy);
+}
+
+enum Ata_Status ata_lba_read(size logical_address, u8 sectors_to_read, void* buffer) {
     const u8 lba_mode = 0b11100000;
     port_write(ata_port_drive_header,  cast(u8, logical_address >> 24) | lba_mode);
     port_write(ata_port_sector_count,  sectors_to_read);
@@ -49,12 +42,21 @@ void ata_lba_read(size logical_address, u8 sectors_to_read, void* buffer) {
     port_write(ata_port_cylinder_high, cast(u8, logical_address >> 16));
 
     port_write(ata_port_command, ata_cmd_read);
-
-    while (port_read(ata_port_status) & ata_drq);
+    // wait_until_not_busy();
 
     const size words_per_sector = 256;
     const size words_to_read = sectors_to_read * words_per_sector;
     asm("rep insw" :: "c"(words_to_read),
                       "d"(ata_port_data),
                       "D"(buffer));
+
+    return ata_get_status();
+}
+
+enum Ata_Error ata_get_error() {
+    return port_read(ata_port_error);
+}
+
+enum Ata_Status ata_get_status() {
+    return port_read(ata_port_status);
 }

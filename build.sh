@@ -17,8 +17,8 @@ cat bootsector.bin kernel.bin > AkeriOS
 binary_size=$(wc -c < AkeriOS)
 padding=$(((1<<16)-binary_size))
 
-dd if=/dev/zero bs=1 count=$padding >> AkeriOS
-
+dd if=/dev/zero bs=1 status=none count=$padding >> AkeriOS
+cat hex_data >> AkeriOS
 
 printf "\n == Cleaning up == \n"
 rm *.o

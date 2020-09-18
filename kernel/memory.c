@@ -33,7 +33,7 @@ void* heap_allocate(size bytes) {
             current = current->next_header;
         }
 
-        if_not (current->next_header) {
+        if (!current->next_header) {
             return get_found_block(current, bytes);
         }
 
