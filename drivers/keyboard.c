@@ -16,20 +16,20 @@ static const u8 kbd_scan_table[62]
 static const u8 kbd_scan_table_shifted[62]
     = "\0#!@#$%^&*()_+\0\0QWERTYUIOP{}\0\0ASDFGHJKL:\"~\0|ZXCVBNM<>?\0*\0 ";
 
-bool kbd_key_is_number(enum Kbd_Scan_Code code) {
+internal bool kbd_key_is_number(enum Kbd_Scan_Code code) {
     u8 character = kbd_scan_table[code];
     if (character >= '0' && character <= '9') return true;
     return false;
 }
 
-bool kbd_key_is_letter(enum Kbd_Scan_Code code) {
+internal bool kbd_key_is_letter(enum Kbd_Scan_Code code) {
     u8 character = kbd_scan_table[code];
     if (character >= 'a' && character <= 'z') return true;
     return false;
 }
 
 __attribute__((interrupt))
-void kbd_isr(struct Interrupt_Frame* frame) {
+internal void kbd_isr(struct Interrupt_Frame* frame) {
 
     enum Kbd_Scan_Code scan_code = port_read(0x60);
     struct Kbd_Key key;

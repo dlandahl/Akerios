@@ -5,6 +5,7 @@
 #include "kernel/shell.h"
 #include "drivers/keyboard.h"
 #include "drivers/vga.h"
+#include "drivers/ata.h"
 
 
 size str_length(u8* string) {
@@ -153,9 +154,7 @@ void clear_screen() {
         vga_print_char('=');
 }
 
-
-
-void kernel_entry() {
+void shell_test() {
     heap_init();
     vga_init();
     vga.attribute = 0x0b;
@@ -178,5 +177,21 @@ void kernel_entry() {
     // u16* a = heap_allocate_typed(u16, 1);
     // int* b = heap_allocate_typed(int, 32);
     // vga_print_hex(cast(int, b));
+    while (true);
+}
+
+void kernel_entry() {
+    heap_init();
+    vga_init();
+    vga.attribute = 0x0b;
+
+    vga_clear();
+    vga_hide_cursor();
+    vga_print(msg_welcome);
+
+    u32* buffer = heap_allocate_typed(u32, 128);
+    ata_lba_read(128, 1, buffer);
+
+    vga_print_hex(buffer[0]);
     while (true);
 }

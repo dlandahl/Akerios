@@ -43,7 +43,7 @@ struct {
     u8* program;
 } interp;
 
-struct Token interp_next_token() {
+internal struct Token interp_next_token() {
     struct Token token;
     token.character = 0;
 
@@ -54,13 +54,27 @@ struct Token interp_next_token() {
     u8 c = interp.program[interp.cursor];
     if (c >= '0' && c <= '9') {
         size value = c - '0';
+
+        bool hex = false;
+        if (c == '0' && interp.program[interp.cursor+1] == 'x') {
+            hex = true;
+            interp.cursor++;
+        }
         c = interp.program[++interp.cursor];
 
-        while (c >= '0' && c <= '9') {
+        if (!hex) while (c >= '0' && c <= '9') {
             value *= 10;
             value += c - '0';
             c = interp.program[++interp.cursor];
         }
+
+        else while (c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+            value *= 16;
+            if (c > '9') value += c - 'f' + 15;
+            else value += c - '0';
+            c = interp.program[++interp.cursor];
+        }
+
         token.end = interp.cursor;
         token.type = token_number;
         token.value = value;
@@ -105,18 +119,18 @@ struct Token interp_next_token() {
     return token;
 }
 
-struct Token interp_peek_token() {
+internal struct Token interp_peek_token() {
     size old = interp.cursor;
     struct Token token = interp_next_token();
     interp.cursor = old;
     return token;
 }
 
-u32 interp_parse_product();
-u32 interp_parse_factor();
+internal u32 interp_parse_product();
+internal u32 interp_parse_factor();
 
 bool expr_error;
-u32 interp_parse_expression() {
+internal u32 interp_parse_expression() {
     expr_error = false;
     u32 value = interp_parse_product();
 
@@ -134,7 +148,7 @@ u32 interp_parse_expression() {
     return value;
 }
 
-u32 interp_parse_product() {
+internal u32 interp_parse_product() {
     u32 value = interp_parse_factor();
 
     struct Token operator = interp_peek_token();
@@ -151,7 +165,7 @@ u32 interp_parse_product() {
     return value;
 }
 
-u32 interp_parse_factor() {
+internal u32 interp_parse_factor() {
     struct Token num = interp_next_token();
     if (num.type != token_number) {
         vga_print("\nExpected number, got token type: ");
@@ -195,19 +209,31 @@ struct {
     size length;
 } shell;
 
-void shell_submit_command() {
+internal void shell_submit_command() {
     interp.program = shell.command;
     interp_parse_command();
 
     shell.length = 0;
     vga_newline();
+
+    while (vga.cursor >= vga_cols * (vga_rows - 9)) {
+        mem_move(vga.framebuffer + 20 * vga_cols,
+                 vga.framebuffer + 22 * vga_cols,
+                 (vga_rows - 8) * vga_cols);
+
+        //const u16* clear_start
+        vga.cursor -= 2*vga_cols;
+    }
+
+    vga_move_cursor(vga.cursor);
     vga_print("# ");
     vga_move_cursor(vga.cursor);
+
     for (size n = 0; n < sizeof(shell.command); n++)
         shell.command[n] = 0;
 }
 
-void shell_keypress(struct Kbd_Key key) {
+internal void shell_keypress(struct Kbd_Key key) {
     if (key.is_release) return;
 
     if (key.ascii) {

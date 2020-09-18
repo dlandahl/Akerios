@@ -87,7 +87,7 @@ void vga_put(u8* message, size col, size row) {
 }
 
 void vga_print_char(u8 character) {
-    u8 buffer[2] = { 0 };
+    static u8 buffer[2] = { 0 };
     buffer[0] = character;
     vga_print(buffer);
 }
