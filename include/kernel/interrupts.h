@@ -5,6 +5,7 @@ struct Interrupt_Frame;
 
 void idt_add_entry(void*, size);
 void idt_init();
+void interrupt_print_frame(struct Interrupt_Frame*);
 
 enum {
     irq_time = 0x0,

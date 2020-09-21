@@ -8,7 +8,7 @@ struct Heap_Header {
     bool free;
 };
 
-struct Heap_Header* heap_first_header = (struct Heap_Header*) 0x4000;
+struct Heap_Header* heap_first_header = (struct Heap_Header*) 0x40000;
 
 void heap_init() {
     heap_first_header->next_header = nullptr;
@@ -47,9 +47,11 @@ void* heap_allocate(size bytes) {
 }
 
 void heap_deallocate(void* block) {
-    // Todo: don't fragment
     struct Heap_Header* header = cast(void*, block) - size_of(struct Heap_Header);
     header->free = true;
+    while (header->next_header && header->next_header->free) {
+        header->next_header = header->next_header->next_header;
+    }
 }
 
 

@@ -1,15 +1,17 @@
 
 #pragma once
 
+#include "common.h"
+
 enum {
-    ata_status_error              = 1 << 0,
-    ata_status_index              = 1 << 1,
-    ata_status_corrected_data     = 1 << 2,
-    ata_status_transfer_requested = 1 << 3,
-    ata_status_seek_complete      = 1 << 4,
-    ata_status_device_fault       = 1 << 5,
-    ata_status_ready              = 1 << 6,
-    ata_status_busy               = 1 << 7,
+    ata_status_error               = 1 << 0,
+    ata_status_index               = 1 << 1,
+    ata_status_corrected_data      = 1 << 2,
+    ata_status_transfer_requested  = 1 << 3,
+    ata_status_seek_complete       = 1 << 4,
+    ata_status_device_fault        = 1 << 5,
+    ata_status_ready               = 1 << 6,
+    ata_status_busy                = 1 << 7,
 };
 
 enum {
@@ -27,14 +29,14 @@ typedef u8 Ata_Error;
 typedef u8 Ata_Status;
 
 struct Ata_Drive {
-    int spt, hpc;
+    u32 spt, hpc;
 };
 
 struct Ata_Chs_Address {
-    int c, h, s;
+    u32 c, h, s;
 };
 
-int ata_chs_to_lba(struct Ata_Drive, struct Ata_Chs_Address);
+size ata_chs_to_lba(struct Ata_Drive, struct Ata_Chs_Address);
 Ata_Error ata_lba_read(void*, size, u8);
 Ata_Error ata_lba_write(void*, size, u8);
 

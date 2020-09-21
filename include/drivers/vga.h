@@ -1,8 +1,12 @@
 
 #pragma once
 
+#include "common.h"
+
 #define vga_cols 80
-#define vga_rows 35
+#define vga_rows 25
+
+typedef void(*Vga_Spill_Handler)();
 
 struct {
     u8 attribute;
@@ -10,6 +14,7 @@ struct {
     size cursor;
     size tab_stop;
     size framebuffer_size;
+    Vga_Spill_Handler spill_handler;
 } vga;
 
 void vga_set_attribute(u8, size, bool);
@@ -24,6 +29,10 @@ void vga_put(i8*, size, size);
 void vga_print_char(i8);
 void vga_print_hex(u32);
 void vga_print_byte(u8);
+void vga_invert();
+
+void vga_set_spill_handler(Vga_Spill_Handler);
+Vga_Spill_Handler vga_get_spill_handler();
 
 enum Vga_Colour {
     vga_black,

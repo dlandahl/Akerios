@@ -1,4 +1,5 @@
 
+#include "drivers/vga.h"
 #include "kernel/kernel.h"
 #include "kernel/interrupts.h"
 
@@ -31,7 +32,7 @@ void idt_add_entry(void* addr, size index) {
     entry.offset_2  = (u32) addr >> 16;
     entry.selector  = 0b00001000;
     entry.zero      = 0x0;
-    entry.type_attr = 0xee;
+    entry.type_attr = 0x8e;
     idt[(index)]    = entry;
 }
 
@@ -40,6 +41,29 @@ void idt_init() {
     idt_desc.base  = (u32) idt;
 
     asm("lidt %0" :: "m"(idt_desc));
+}
+
+void interrupt_print_frame(struct Interrupt_Frame* frame) {
+    vga_print("\t|IP: ");
+    vga_print_hex(frame->ip);
+    vga_print("|\t\t");
+
+    vga_print("|CS: ");
+    vga_print_hex(frame->cs);
+    vga_print("|\t\t");
+
+    vga_print("|FLAGS: ");
+    vga_print_byte(frame->flags);
+    vga_print("|\n\t");
+
+    vga_print("|SP: ");
+    vga_print_hex(frame->sp);
+    vga_print("|\t\t");
+
+    vga_print("|SS: ");
+    vga_print_hex(frame->ss);
+    vga_print("|\t\t");
+    vga_hide_cursor();
 }
 
 

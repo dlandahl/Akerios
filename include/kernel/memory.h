@@ -25,4 +25,6 @@ i32  mem_compare(void*, void*, size);
         cast(Type*, target)[n] = value;               \
     }                                                 \
 
+#define mem_clear_typed(Type, target)                 \
+    mem_clear(&target, size_of(Type))                 \
 

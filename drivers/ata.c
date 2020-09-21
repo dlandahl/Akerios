@@ -24,7 +24,7 @@ enum Ata_Cmd {
     ata_cmd_write   = 0x30,
 };
 
-int ata_chs_to_lba(struct Ata_Drive drive, struct Ata_Chs_Address addr) {
+size ata_chs_to_lba(struct Ata_Drive drive, struct Ata_Chs_Address addr) {
     return (addr.c * drive.hpc + addr.h) * drive.spt + (addr.s - 1);
 }
 
@@ -41,7 +41,7 @@ internal void ata_send_address_and_size(size logical_address, u8 sectors_to_read
     port_write(ata_port_drive_header,  cast(u8, logical_address >> 24) | lba_mode);
     port_write(ata_port_sector_count,  sectors_to_read);
 
-    port_write(ata_port_lba_low, cast(u8, logical_address));
+    port_write(ata_port_lba_low,  cast(u8, logical_address));
     port_write(ata_port_lba_mid,  cast(u8, logical_address >> 8));
     port_write(ata_port_lba_high, cast(u8, logical_address >> 16));
     ata_await_not_busy();

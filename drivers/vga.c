@@ -44,9 +44,15 @@ void vga_init() {
 
     vga_set_attribute(0x10, 3, true);
     vga.tab_stop = 4;
+    vga.spill_handler = nullptr;
 }
 
 void vga_newline() {
+    if (vga.spill_handler
+     && vga.cursor >= (vga_rows - 1) * vga_cols) {
+        vga.spill_handler();
+    }
+
     vga.cursor += vga_cols - vga.cursor % vga_cols;
 }
 
@@ -68,6 +74,11 @@ void vga_print(i8* message) {
     for (size n = 0; message[n]; n++) {
         size index = vga.cursor * 2;
 
+        if (vga.spill_handler
+         && vga.cursor + 1 >= vga_rows * vga_cols) {
+            vga.spill_handler();
+        }
+
         switch (message[n]) {
             case '\n': vga_newline(); break;
             case '\t': vga_tab();     break;
@@ -76,6 +87,7 @@ void vga_print(i8* message) {
                 vga.framebuffer[index+1] = vga.attribute;
                 vga.cursor++;
         }
+        vga_move_cursor(vga.cursor);
     }
 }
 
@@ -110,4 +122,17 @@ void vga_print_byte(u8 number) {
         vga_print_char((number & mask) ? '1' : '0');
         mask >>= 1;
     }
+}
+
+void vga_invert() {
+    vga.attribute = (vga.attribute & 0xf) << 4 | (vga.attribute & 0xf0) >> 4;
+}
+
+
+void vga_set_spill_handler(Vga_Spill_Handler handler) {
+    vga.spill_handler = handler;
+}
+
+Vga_Spill_Handler vga_get_spill_handler() {
+    return vga.spill_handler;
 }

@@ -18,7 +18,7 @@ binary_size=$(wc -c < AkeriOS)
 padding=$(((1<<16)-binary_size))
 
 dd if=/dev/zero bs=1 status=none count=$padding >> AkeriOS
-cat hex_data >> AkeriOS
+cat filesystem >> AkeriOS
 
 printf "\n == Cleaning up == \n"
 rm *.o

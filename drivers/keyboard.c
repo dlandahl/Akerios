@@ -30,7 +30,7 @@ internal bool kbd_key_is_letter(enum Kbd_Scan_Code code) {
 
 __attribute__((interrupt))
 internal void kbd_isr(struct Interrupt_Frame* frame) {
-
+    asm("cli");
     enum Kbd_Scan_Code scan_code = port_read(0x60);
     struct Kbd_Key key;
 
@@ -79,6 +79,7 @@ internal void kbd_isr(struct Interrupt_Frame* frame) {
 
     if (kbd_state.handler) kbd_state.handler(key);
     pic_send_eoi(irq_kbd);
+    asm("sti");
     return;
 }
 
