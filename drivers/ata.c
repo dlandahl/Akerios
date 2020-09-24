@@ -60,6 +60,7 @@ Ata_Error ata_lba_read(void* buffer, size logical_address, u8 sectors_to_read) {
                       "d"(ata_port_data),
                       "D"(buffer));
 
+    ata_await_not_busy();
     return ata_get_error();
 }
 
@@ -75,6 +76,7 @@ Ata_Error ata_lba_write(void* buffer, size logical_address, u8 sectors_to_write)
                        "d"(ata_port_data),
                        "S"(buffer));
 
+    ata_await_not_busy();
     return ata_get_error();
 }
 

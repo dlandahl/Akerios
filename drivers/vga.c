@@ -74,6 +74,17 @@ void vga_print(i8* message) {
     for (size n = 0; message[n]; n++) {
         size index = vga.cursor * 2;
 
+        if ('\\' == message[n]) {
+            switch (message[n+1]) {
+                case 'c': {
+                    vga.attribute = message[n+2];
+                    n += 2;
+                    continue;
+                }
+                default: break;
+            }
+        }
+
         if (vga.spill_handler
          && vga.cursor + 1 >= vga_rows * vga_cols) {
             vga.spill_handler();

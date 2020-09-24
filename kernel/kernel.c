@@ -3,9 +3,11 @@
 #include "kernel/memory.h"
 #include "kernel/interrupts.h"
 #include "kernel/shell.h"
+#include "kernel/filesystem.h"
 #include "drivers/keyboard.h"
 #include "drivers/vga.h"
 #include "drivers/ata.h"
+
 
 
 size str_length(u8* string) {
@@ -266,7 +268,7 @@ void isr_timer(struct Interrupt_Frame* frame) {
 void shell_test() {
     heap_init();
     vga_init();
-    vga.attribute = 0x8c;
+    vga.attribute = 0xf0;
     idt_init();
     pic_init();
     // vga_hide_cursor();
@@ -311,26 +313,44 @@ void shell_test() {
 }
 
 void kernel_entry() {
-/*    heap_init();
+    heap_init();
     vga_init();
-    vga.attribute = 0x0b;
+    vga.attribute = 0xf0;
 
     vga_clear();
-    vga_hide_cursor();
-    vga_print(msg_welcome);
-    vga_newline();
 
-    u32* buffer = heap_allocate_typed(u32, 128);
-    buffer[10] = 0xbadbeef0;
-    ata_lba_write(buffer, 128, 1);
+    Ata_Error err = fs_format();
+    fs_create_file("Test file");
 
-    u32* buffer_2 = heap_allocate_typed(u32, 128);
+    const size file_size = fs_blocksize;
+    u8* data = heap_allocate(file_size);
+    *cast(u32*, data) = 0x1234abcd;
 
-    vga_print_hex(buffer_2[10]);    vga_newline();
-    ata_lba_read(buffer_2, 128, 1);
-    vga_print_hex(buffer_2[10]);    vga_newline();
+    bool success = fs_write_entire_file("Test file", data, file_size);
+    vga_print("File write success: ");
+    vga_print(success ? "success\n" : "fail\n");
 
+     mem_clear(data, file_size);
+     vga_print_hex(*cast(u32*, data));
+     vga_newline();
+     heap_deallocate(data);
+ 
+     data = fs_read_entire_file("Test file");
+     vga_print("File read success: ");
+     vga_print(data ? "success\n" : "fail\n");
+ 
+     vga_newline();
+     vga_print_hex(*cast(u32*, data));
+     vga_newline();
+ 
+     Fat_Entry* fat = heap_allocate(fs_blocksize);
+     ata_lba_read(fat, fs_disk_location, 1);
+ 
+     vga_newline();
+     for (size n = 0; n < 18; n++) {
+         vga_print_hex(fat[n]);
+         vga_print(" | ");
+         if_not((n+1)%6) vga_newline();
+     }
     while (true);
-*/
-    shell_test();
 }

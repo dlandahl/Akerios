@@ -7,14 +7,14 @@
 #include "drivers/ata.h"
 
 u8* msg_welcome =
-"  /%%%%%%  /%%                           /%%  /%%%%%%   /%%%%%% \n"
+"\n  /%%%%%%  /%%                           /%%  /%%%%%%   /%%%%%% \n"
 " /%%__  %%| %%                          |__/ /%%__  %% /%%__  %%\n"
 "| %%  \\ %%| %%   /%%  /%%%%%%   /%%%%%%  /%%| %%  \\ %%| %%  \\__/\n"
 "| %%%%%%%%| %%  /%%/ /%%__  %% /%%__  %%| %%| %%  | %%|  %%%%%% \n"
 "| %%__  %%| %%%%%%/ | %%%%%%%%| %%  \\__/| %%| %%  | %% \\____  %%\n"
 "| %%  | %%| %%_  %% | %%_____/| %%      | %%| %%  | %% /%%  \\ %%\n"
 "| %%  | %%| %% \\  %%|  %%%%%%%| %%      | %%|  %%%%%%/|  %%%%%%/\n"
-"|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/ \n\n";
+"|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/";
 
 u8* shell_title = "Akerios Shell";
 
@@ -92,18 +92,16 @@ internal struct Typed_Value shell_cmd_free(Argument_List args) {
 }
 
 internal struct Typed_Value shell_cmd_logo(Argument_List args) {
-    vga_newline();
-    vga_print(msg_welcome);
     struct Typed_Value ret;
-    ret.type = type_void;
+    ret.type = type_string;
+    ret.string = msg_welcome;
     return ret;
 }
 
 internal struct Typed_Value shell_cmd_hello(Argument_List args) {
-    vga_newline();
-    vga_print("Hello, World!");
     struct Typed_Value ret;
-    ret.type = type_void;
+    ret.type = type_string;
+    ret.string = "Hello World";
     return ret;
 }
 
@@ -153,7 +151,29 @@ internal struct Typed_Value shell_cmd_read(Argument_List args) {
     return ret;
 }
 
-Shell_Command shell_command_funcs[10] = {
+internal struct Typed_Value shell_cmd_highlight(Argument_List args) {
+    i8* message = args[0].string;
+    u32 colour = vga_red;
+    if (args[1].type) colour = args[1].number;
+    u8 attr = vga.attribute;
+
+    static u8 tag[3] = "\\c";
+    size size = str_length(message);
+    i8* buffer = heap_allocate(size + size_of(tag) * 2);
+
+    tag[2] = (vga.attribute & 0xf0) + (colour & 0xf);
+    mem_copy(buffer, tag, size_of(tag));
+    mem_copy(buffer + size_of(tag), message, size);
+    tag[2] = vga.attribute;
+    mem_copy(buffer + size_of(tag) + size, tag, size_of(tag));
+
+    struct Typed_Value ret;
+    ret.type = type_string;
+    ret.string = buffer;
+    return ret;
+}
+
+Shell_Command shell_command_funcs[11] = {
     &shell_cmd_set_colour,
     &shell_cmd_random,
     &shell_cmd_clear,
@@ -164,10 +184,11 @@ Shell_Command shell_command_funcs[10] = {
     &shell_cmd_rdtsc,
     &shell_cmd_poke,
     &shell_cmd_read,
+    &shell_cmd_highlight,
 };
 
-i8* shell_command_strings[10] = {
-    "colour", "random", "clear", "allocate", "deallocate", "akerios", "hello", "rdtsc", "poke", "disk:read"
+i8* shell_command_strings[11] = {
+    "colour", "random", "clear", "alloc", "free", "akerios", "hello", "rdtsc", "poke", "read", "highlight"
 };
 
 enum Token_Type {
@@ -195,7 +216,24 @@ struct Token {
 struct {
     size line, cursor;
     u8* program;
+    bool error_flag;
 } interp;
+
+
+
+internal inline bool is_alpha(i8 c) {
+    return c >= 'a' && c <= 'z';
+}
+
+internal inline bool is_num(i8 c) {
+    return c >= '0' && c <= '9';
+}
+
+internal inline bool is_hex(i8 c) {
+    return (c >= '0' && c <= '9' || c >= 'a' && c <= 'f');
+}
+
+
 
 internal struct Token interp_next_token() {
     struct Token token;
@@ -281,13 +319,14 @@ internal struct Token interp_peek_token() {
     return token;
 }
 
-internal u32 interp_parse_product();
-internal u32 interp_parse_factor();
+internal struct Typed_Value interp_parse_product();
+internal struct Typed_Value interp_parse_factor();
 
 bool expr_error;
-internal u32 interp_parse_expression() {
+internal struct Typed_Value interp_parse_expression() {
     expr_error = false;
-    u32 value = interp_parse_product();
+    struct Typed_Value value = interp_parse_product();
+    if (value.type != type_number) return value;
 
     struct Token operator = interp_peek_token();
     while (operator.character == '+'
@@ -295,16 +334,17 @@ internal u32 interp_parse_expression() {
 
         operator = interp_next_token();
         switch (operator.character) {
-            case '+': value += interp_parse_product(); break;
-            case '-': value -= interp_parse_product(); break;
+            case '+': value.number += interp_parse_product().number; break;
+            case '-': value.number -= interp_parse_product().number; break;
         }
         operator = interp_peek_token();
     }
     return value;
 }
 
-internal u32 interp_parse_product() {
-    u32 value = interp_parse_factor();
+internal struct Typed_Value interp_parse_product() {
+    struct Typed_Value value = interp_parse_factor();
+    if (value.type != type_number) return value;
 
     struct Token operator = interp_peek_token();
     while (operator.character == '*'
@@ -312,8 +352,8 @@ internal u32 interp_parse_product() {
 
         operator = interp_next_token();
         switch (operator.character) {
-            case '*': value *= interp_parse_factor(); break;
-            case '/': value /= interp_parse_factor(); break;
+            case '*': value.number *= interp_parse_factor().number; break;
+            case '/': value.number /= interp_parse_factor().number; break;
         }
         operator = interp_peek_token();
     }
@@ -329,7 +369,7 @@ internal struct Typed_Value* interp_parse_argument_list() {
         do {
             interp_next_token();
             list[n].type = type_number;
-            list[n++].number = interp_parse_expression();
+            list[n++] = interp_parse_expression();
         } while (interp_peek_token().type == token_comma);
         if (interp_next_token().type != token_close_bracket) {
             vga_print("\nExpected closed bracket");
@@ -339,16 +379,21 @@ internal struct Typed_Value* interp_parse_argument_list() {
     return list;
 }
 
-internal u32 interp_parse_factor() {
+internal struct Typed_Value interp_parse_factor() {
     struct Token factor = interp_next_token();
+    struct Typed_Value value;
+
     switch (factor.type) {
-        case token_number: return factor.value;
+        case token_number: {
+            value.type = type_number;
+            value.number = factor.value;
+            return value;
+        }
         case token_name: {
             for (size n = 0; n < size_of(shell_command_strings) / size_of(i8*); n++) {
                 if (str_compare(factor.str, shell_command_strings[n])) {
                     struct Typed_Value* list = interp_parse_argument_list();
-                    struct Typed_Value value = shell_command_funcs[n](list);
-                    return value.number;
+                    return shell_command_funcs[n](list);
                 }
             }
         }
@@ -356,7 +401,7 @@ internal u32 interp_parse_factor() {
             vga_newline();
             vga_print("ERROR");
     }
-    return factor.value;
+    return value;
 }
 
 void interp_parse_command() {
@@ -368,10 +413,13 @@ void interp_parse_command() {
     case token_line_end: return;
     case token_name:
     case token_number: {
-        u32 value = interp_parse_expression();
+        struct Typed_Value value = interp_parse_expression();
         if (expr_error) return;
-        vga_newline();
-        vga_print_hex(value);
+        switch (value.type) {
+            case type_number: vga_newline(); vga_print_hex(value.number); break;
+            case type_string: vga_newline(); vga_print(value.string); break;
+            case type_void: break;
+        }
         break;
     }
     default:
