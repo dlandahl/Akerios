@@ -320,9 +320,10 @@ void shell_test() {
 }
 
 void kernel_entry() {
+    shell_test();
     heap_init();
     vga_init();
-    vga.attribute = 0xf0;
+    vga.attribute = 0x4e;
 
     vga_clear();
 

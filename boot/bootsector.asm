@@ -1,6 +1,6 @@
 
 %define vbs 0x10
-%define vbs_tty      0x0e
+%define vbs_tty 0x0e
 
 %define vga_address 0xb8000
 %define vga_col_wb  0x0f
@@ -50,7 +50,6 @@ load_kernel:
     mov bx, kernel_offset
     mov dh, 0x35
     mov dl, [boot_drive]
-
     call read_sectors
 
     mov bx, ax

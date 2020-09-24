@@ -6,7 +6,8 @@
 #include "drivers/keyboard.h"
 #include "drivers/ata.h"
 
-u8* msg_welcome =
+i8* shell_title = "Akerios Shell";
+i8* msg_welcome =
 "\n  /%%%%%%  /%%                           /%%  /%%%%%%   /%%%%%% \n"
 " /%%__  %%| %%                          |__/ /%%__  %% /%%__  %%\n"
 "| %%  \\ %%| %%   /%%  /%%%%%%   /%%%%%%  /%%| %%  \\ %%| %%  \\__/\n"
@@ -16,10 +17,9 @@ u8* msg_welcome =
 "| %%  | %%| %% \\  %%|  %%%%%%%| %%      | %%|  %%%%%%/|  %%%%%%/\n"
 "|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/";
 
-u8* shell_title = "Akerios Shell";
-
 internal void clear_screen() {
     vga_clear();
+
     vga_print("===[ ");
     vga_print(shell_title);
     vga_print(" ]");
