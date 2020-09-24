@@ -8,9 +8,10 @@ struct Heap_Header {
     bool free;
 };
 
-struct Heap_Header* heap_first_header = (struct Heap_Header*) 0x40000;
+struct Heap_Header* heap_first_header;
 
 void heap_init() {
+    heap_first_header = (struct Heap_Header*) 0x40000;
     heap_first_header->next_header = nullptr;
     heap_first_header->free = true;
 }
