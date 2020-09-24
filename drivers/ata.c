@@ -33,7 +33,7 @@ internal void ata_await_not_busy() {
 }
 
 internal void ata_await_ready() {
-    while (!(ata_get_status() & ata_status_ready));
+    while (!(ata_get_status() & ata_status_ready)) io_wait();
 }
 
 internal void ata_send_address_and_size(size logical_address, u8 sectors_to_read) {
@@ -60,13 +60,12 @@ Ata_Error ata_lba_read(void* buffer, size logical_address, u8 sectors_to_read) {
                       "d"(ata_port_data),
                       "D"(buffer));
 
-    ata_await_not_busy();
+    io_wait();
     return ata_get_error();
 }
 
 Ata_Error ata_lba_write(void* buffer, size logical_address, u8 sectors_to_write) {
     ata_send_address_and_size(logical_address, sectors_to_write);
-
     port_write(ata_port_command, ata_cmd_write);
     ata_await_not_busy();
 

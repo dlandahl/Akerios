@@ -29,6 +29,8 @@ struct Dir_Entry {
 #define dir_entry_count (fs_blocksize / size_of(struct Dir_Entry))
 struct Dir_Block {
     struct Dir_Entry entries[dir_entry_count];
+
+    // Padding to ensure the size is 1 disk block
     u8 _[fs_blocksize - size_of(struct Dir_Entry[dir_entry_count])];
 } __attribute__((packed));
 
@@ -46,7 +48,7 @@ union Block {
 
 
 
-// For some reason I can't get the ATA driver to read or write several sectors at once?
+// For some reason I can't get the ATA driver to read or write several sectors at once
 internal Ata_Error read_block_from_disk(union Block* block, size index) {
     const size sectors_per_block = fs_blocksize / 512;
     for (size sector = 0; sector < sectors_per_block; sector++) {
@@ -84,6 +86,10 @@ internal size find_file(u8* name, struct Dir_Block* dir) {
     return dir_entry;
 }
 
+internal void write_data(Fat_Entry entry, u8* data, size count) {
+
+}
+
 
 
 bool fs_write_entire_file(i8* name, u8* buffer, size file_size) {
@@ -97,9 +103,6 @@ bool fs_write_entire_file(i8* name, u8* buffer, size file_size) {
     read_block_from_disk(cast(union Block*, &fat), 0);
 
     size blocks_required = (file_size-1) / fs_blocksize;
-    vga_print("\nExtra blocks required: ");
-    vga_print_hex(blocks_required);
-    vga_newline();
 
     do {
         write_block_to_disk(cast(union Block*, buffer), entry);
@@ -131,9 +134,8 @@ bool fs_write_entire_file(i8* name, u8* buffer, size file_size) {
 
 u8* fs_read_entire_file(i8* name) {
     struct Dir_Block root;
-    read_block_from_disk(cast(union Block*, &root), 1);
-
     struct Fat_Block fat;
+    read_block_from_disk(cast(union Block*, &root), 1);
     read_block_from_disk(cast(union Block*, &fat), 0);
 
     size dir_entry = find_file(name, &root);
@@ -142,13 +144,43 @@ u8* fs_read_entire_file(i8* name) {
     size file_size  = root.entries[dir_entry].size;
 
     u8* buffer = heap_allocate(file_size);
+    u8* ret = buffer;
     while (true) {
         read_block_from_disk(cast(union Block*, buffer), entry);
         entry = fat.entries[entry];
         if (entry == fat_end_of_chain) break;
         buffer += fs_blocksize;
     }
-    return buffer;
+    return ret;
+}
+
+bool fs_append_to_file(i8* name, u8* buffer, i32 count) {
+    struct Dir_Block root;
+    struct Fat_Block fat;
+    read_block_from_disk(cast(union Block*, &root), 1);
+    read_block_from_disk(cast(union Block*, &fat),  0);
+
+    size dir_entry = find_file(name, &root);
+    if (dir_entry == -1) return false;
+    struct Dir_Entry* file = &root.entries[dir_entry];
+
+    Fat_Entry entry = file->index;
+    while (entry != fat_end_of_chain) {
+        entry = fat.entries[entry];
+    }
+
+    i32 residue = fs_blocksize - (file->size % fs_blocksize);
+    if (residue) {
+        i32 bytes_to_write = count < residue ? count : residue;
+
+        struct Data_Block data;
+        read_block_from_disk(cast(union Block*, &data), entry);
+        mem_copy(cast(u8*, data.data) + fs_blocksize - residue, buffer, bytes_to_write);
+        write_block_to_disk(cast(union Block*, &data), entry);
+
+        buffer += bytes_to_write;
+        count -= bytes_to_write;
+    }
 }
 
 void fs_create_file(i8* name) {
@@ -160,9 +192,6 @@ void fs_create_file(i8* name) {
 
     Fat_Entry index = get_free_fat_entry();
     fat.entries[index] = fat_end_of_chain;
-    vga_print("Created empty file in: ");
-    vga_print_hex(index);
-    vga_newline();
 
     for (size dir_entry = 0; dir_entry < dir_entry_count; dir_entry++) {
         struct Dir_Entry* entry = &root.entries[dir_entry];
@@ -193,4 +222,20 @@ Ata_Error fs_format() {
 
     err |= write_block_to_disk(cast(union Block*, &root), 1);
     return err;
+}
+
+void fs_list_directory() {
+    struct Dir_Block root;
+    read_block_from_disk(cast(union Block*, &root), 1);
+
+    for (size n = 0; n < dir_entry_count; n++) {
+        struct Dir_Entry* entry = &root.entries[n];
+        if_not (entry->index) continue;
+        vga_print(entry->name);
+        vga_print(":\tFile size: ");
+        vga_print_hex(entry->size);
+        vga_print("  |  FAT entry: ");
+        vga_print_hex(entry->index);
+        vga_newline();
+    }
 }

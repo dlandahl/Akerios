@@ -12,3 +12,4 @@ bool fs_write_entire_file(i8*, u8*, size);
 u8* fs_read_entire_file(i8*);
 void fs_create_file(i8*);
 u8 fs_format();
+void fs_list_directory();
