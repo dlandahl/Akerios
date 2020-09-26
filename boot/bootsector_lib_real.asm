@@ -105,7 +105,7 @@ read_sectors:
     ret
     ; jmp $
 
-.msg_error: db '6', 0
+.msg_error: db 'Failed to load some sectors from disk', 10, 0
 
 
 

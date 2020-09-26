@@ -23,6 +23,31 @@ bool str_compare(u8* a, u8* b) {
     return true;
 }
 
+u8* str_tokenize(u8* string, u8 delim) {
+    static u8* state;
+    static size pointer;
+    static size length;
+    if (string) {
+        pointer = 0;
+        state = string;
+        length = str_length(string);
+    }
+
+    if (pointer >= length) return nullptr;
+    size start = pointer;
+    for (size n = pointer; n < length; n++) {
+        if (state[n] == delim) {
+            state[n] = 0;
+            pointer = n+1;
+            return state + start;
+        }
+    }
+    pointer = length;
+    return state + start;
+}
+
+
+
 void port_write(u16 port, u8 value) {
     asm("out dx, al" :: "a"(value), "d"(port));
 }
@@ -101,146 +126,6 @@ void rand_set_seed(struct Rand* rand, u32 seed) {
 
 
 
-__attribute__((interrupt))
-void isr_zero_division(struct Interrupt_Frame* frame) {
-    vga_print("\nZero division fault, halting.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-__attribute__((interrupt))
-void isr_debug(struct Interrupt_Frame* frame) {
-    vga_print("\nDebug exception.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_nmi(struct Interrupt_Frame* frame) {
-    vga_print("\nNon-maksable Interrupt exception.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_breakpoint(struct Interrupt_Frame* frame) {
-    vga_print("\nBreakpoint exception.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_overflow(struct Interrupt_Frame* frame) {
-    vga_print("\nOverflow exception.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_bound_range(struct Interrupt_Frame* frame) {
-    vga_print("\nBound range exceeded exception.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_invalid_opcode(struct Interrupt_Frame* frame) {
-    vga_print("\nInvalid opcode exception.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_device(struct Interrupt_Frame* frame) {
-    vga_print("\nDevice not available exception.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_double_fault(struct Interrupt_Frame* frame) {
-    vga_print("\nDouble Fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_invalid_tss(struct Interrupt_Frame* frame) {
-    vga_print("\nInvalid TSS.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_segment(struct Interrupt_Frame* frame) {
-    vga_print("\nSegment not present.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_stack_fault(struct Interrupt_Frame* frame) {
-    vga_print("\nStack segment fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_general_prodection(struct Interrupt_Frame* frame) {
-    vga_print("\nGeneral protection fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_page_fault(struct Interrupt_Frame* frame) {
-    vga_print("\nPage fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_float(struct Interrupt_Frame* frame) {
-    vga_print("\nFloating point exception.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_alignment(struct Interrupt_Frame* frame) {
-    vga_print("\nAlignment check fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_machine(struct Interrupt_Frame* frame) {
-    vga_print("\nMachine check fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_simd(struct Interrupt_Frame* frame) {
-    vga_print("\nSIMD Float exception fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_virt(struct Interrupt_Frame* frame) {
-    vga_print("\nVirtualization exception fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-__attribute__((interrupt))
-void isr_sec(struct Interrupt_Frame* frame) {
-    vga_print("\nSecurity exception fault.\n");
-    interrupt_print_frame(frame);
-    asm("hlt");
-}
-
-
 void timer_kbd_void(struct Kbd_Key key) {
     return;
 }
@@ -275,31 +160,11 @@ void assert(bool condition, u8* message) {
 void shell_test() {
     heap_init();
     vga_init();
-    vga.attribute = 0xf0;
+    vga.attribute = 0x08;
     idt_init();
     pic_init();
+    fs_init();
     // vga_hide_cursor();
-
-    idt_add_entry(&isr_zero_division, 0x0);
-    idt_add_entry(&isr_debug, 0x1);
-    idt_add_entry(&isr_nmi, 0x2);
-    idt_add_entry(&isr_breakpoint, 0x3);
-    idt_add_entry(&isr_overflow, 0x4);
-    idt_add_entry(&isr_bound_range, 0x5);
-    idt_add_entry(&isr_invalid_opcode, 0x6);
-    idt_add_entry(&isr_device, 0x7);
-    idt_add_entry(&isr_double_fault, 0x8);
-    idt_add_entry(&isr_invalid_tss, 0xa);
-    idt_add_entry(&isr_segment, 0xb);
-    idt_add_entry(&isr_stack_fault, 0xc);
-    idt_add_entry(&isr_general_prodection, 0xd);
-    idt_add_entry(&isr_page_fault, 0xe);
-    idt_add_entry(&isr_float, 0x10);
-    idt_add_entry(&isr_alignment, 0x11);
-    idt_add_entry(&isr_machine, 0x12);
-    idt_add_entry(&isr_simd, 0x13);
-    idt_add_entry(&isr_virt, 0x14);
-    idt_add_entry(&isr_sec, 0x1e);
 
     // idt_add_entry(&isr_timer, 0x20);
     // pic_mask(irq_time, true);
@@ -319,25 +184,24 @@ void shell_test() {
     while (true);
 }
 
-void kernel_entry() {
-    shell_test();
+void filesystem_test() {
     heap_init();
     vga_init();
-    vga.attribute = 0x4e;
+    vga.attribute = 0x0e;
 
     vga_clear();
-
     vga.tab_stop = 12;
     Ata_Error err = fs_format();
     fs_create_file("history");
     fs_create_file("log");
 
-    size file_size = fs_blocksize + 2048;
+    size file_size = fs_blocksize * 2;
     u8* data = heap_allocate(file_size);
     mem_clear(data, file_size);
-    *cast(u32*, data) = 0x1234abcd;
+    *cast(u32*, data + fs_blocksize) = 0x1234abcd;
 
     bool success = fs_write_entire_file("history", data, file_size);
+    fs_append_to_file("history", data, file_size);
     vga_print("File write success: ");
     vga_print(success ? "success\n" : "fail\n");
 
@@ -345,13 +209,14 @@ void kernel_entry() {
     heap_deallocate(data);
     data = fs_read_entire_file("history");
     vga_newline();
-    vga_print_hex(*cast(u32*, data));
+    vga_print_hex(*cast(u32*, data + fs_blocksize));
     heap_deallocate(data);
 
     vga_newline();
     vga_newline();
     fs_list_directory();
     Fat_Entry* fat = heap_allocate(fs_blocksize);
+    fs_commit();
     ata_lba_read(fat, fs_disk_location, 1);
 
     vga_newline();
@@ -360,5 +225,22 @@ void kernel_entry() {
         vga_print(" | ");
         if_not((n+1) % 6) vga_newline();
     }
+    while (true);
+}
+
+void kernel_entry() {
+    heap_init();
+    vga_init();
+    vga_clear();
+
+    fs_format();
+    fs_create_file("Test");
+    fs_write_entire_file("Test", "YaaAAAY", 7);
+    fs_append_to_file("Test", "\nSOME TEXT", 8);
+    fs_list_directory();
+    u8* file = fs_read_entire_file("Test");
+    vga_print(file);
+    heap_deallocate(file);
+    fs_commit();
     while (true);
 }

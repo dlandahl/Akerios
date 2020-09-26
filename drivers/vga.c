@@ -71,14 +71,42 @@ void vga_clear() {
 }
 
 void vga_print(i8* message) {
-    for (size n = 0; message[n]; n++) {
+    size len = str_length(message);
+    for (size n = 0; n < len; n++) {
         size index = vga.cursor * 2;
 
         if ('\\' == message[n]) {
             switch (message[n+1]) {
                 case 'c': {
-                    vga.attribute = message[n+2];
-                    n += 2;
+                    vga.back_attribute = vga.attribute;
+                    u8 c = message[n+2];
+                    u8 bg;
+                    if (c != '_') {
+                        bg = (c > '9') ? c - 'a' + 10 : c - '0';
+                    } else {
+                        bg = vga.attribute >> 4;
+                    }
+
+                    c = message[n+3];
+                    u8 fg;
+                    if (c != '_') {
+                        fg = (c > '9') ? c - 'a' + 10 : c - '0';
+                    } else {
+                        fg = vga.attribute & 0xf;
+                    }
+
+                    vga.attribute = (bg << 4) | fg;
+                    n += 3;
+                    continue;
+                }
+                case 'r': {
+                    vga.attribute = vga.back_attribute;
+                    n += 1;
+                    continue;
+                }
+                case 'i': {
+                    vga.attribute = (vga.attribute >> 4) | ((vga.attribute & 0xf) << 4);
+                    n += 1;
                     continue;
                 }
                 default: break;

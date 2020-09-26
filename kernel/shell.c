@@ -2,32 +2,10 @@
 #include "kernel/kernel.h"
 #include "kernel/memory.h"
 #include "kernel/interrupts.h"
+#include "kernel/filesystem.h"
 #include "drivers/vga.h"
 #include "drivers/keyboard.h"
 #include "drivers/ata.h"
-
-i8* shell_title = "Akerios Shell";
-i8* msg_welcome =
-"\n  /%%%%%%  /%%                           /%%  /%%%%%%   /%%%%%% \n"
-" /%%__  %%| %%                          |__/ /%%__  %% /%%__  %%\n"
-"| %%  \\ %%| %%   /%%  /%%%%%%   /%%%%%%  /%%| %%  \\ %%| %%  \\__/\n"
-"| %%%%%%%%| %%  /%%/ /%%__  %% /%%__  %%| %%| %%  | %%|  %%%%%% \n"
-"| %%__  %%| %%%%%%/ | %%%%%%%%| %%  \\__/| %%| %%  | %% \\____  %%\n"
-"| %%  | %%| %%_  %% | %%_____/| %%      | %%| %%  | %% /%%  \\ %%\n"
-"| %%  | %%| %% \\  %%|  %%%%%%%| %%      | %%|  %%%%%%/|  %%%%%%/\n"
-"|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/";
-
-internal void clear_screen() {
-    vga_clear();
-
-    vga_print("===[ ");
-    vga_print(shell_title);
-    vga_print(" ]");
-    for (int n = 0; n < vga_cols - 7 - str_length(shell_title); n++) {
-        vga_print_char('=');
-    }
-}
-
 
 enum Data_Type {
     type_void,
@@ -46,7 +24,34 @@ struct Typed_Value {
 typedef struct Typed_Value Argument_List[8];
 typedef struct Typed_Value(*Shell_Command)(Argument_List);
 
+struct {
+    u8 command[vga_cols - 2];
+    size length;
+    u8 prompt;
+    u8* title;
+
+    Shell_Command* command_funcs;
+    i8** command_strings;
+    size command_count;
+} shell;
+
+internal void clear_screen() {
+    vga_clear();
+
+    vga_print("===[ ");
+    vga_print(shell.title);
+    vga_print(" ]");
+    for (int n = 0; n < vga_cols - 7 - str_length(shell.title); n++) {
+        vga_print_char('=');
+    }
+}
+
 internal bool shell_type_check_argument_list(Argument_List, Argument_List);
+
+#define RETURN_NOTHING       \
+    struct Typed_Value ret;  \
+    ret.type = type_void;    \
+    return ret               \
 
 internal struct Typed_Value shell_cmd_set_colour(Argument_List args) {
     if (args[0].type) vga.attribute = args[0].number;
@@ -59,10 +64,7 @@ internal struct Typed_Value shell_cmd_set_colour(Argument_List args) {
 
 internal struct Typed_Value shell_cmd_clear(Argument_List args) {
     clear_screen();
-
-    struct Typed_Value ret;
-    ret.type = type_void;
-    return ret;
+    RETURN_NOTHING;
 }
 
 internal struct Typed_Value shell_cmd_random(Argument_List args) {
@@ -85,13 +87,20 @@ internal struct Typed_Value shell_cmd_alloc(Argument_List args) {
 }
 
 internal struct Typed_Value shell_cmd_free(Argument_List args) {
-    struct Typed_Value ret;
-    ret.type = type_void;
     if (args[0].type) heap_deallocate((void*) args[0].number);
-    return ret;
+    RETURN_NOTHING;
 }
 
 internal struct Typed_Value shell_cmd_logo(Argument_List args) {
+    u8* msg_welcome =
+"\n  /%%%%%%  /%%                           /%%  /%%%%%%   /%%%%%% \n"
+" /%%__  %%| %%                          |__/ /%%__  %% /%%__  %%\n"
+"| %%  \\ %%| %%   /%%  /%%%%%%   /%%%%%%  /%%| %%  \\ %%| %%  \\__/\n"
+"| %%%%%%%%| %%  /%%/ /%%__  %% /%%__  %%| %%| %%  | %%|  %%%%%% \n"
+"| %%__  %%| %%%%%%/ | %%%%%%%%| %%  \\__/| %%| %%  | %% \\____  %%\n"
+"| %%  | %%| %%_  %% | %%_____/| %%      | %%| %%  | %% /%%  \\ %%\n"
+"| %%  | %%| %% \\  %%|  %%%%%%%| %%      | %%|  %%%%%%/|  %%%%%%/\n"
+"|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/";
     struct Typed_Value ret;
     ret.type = type_string;
     ret.string = msg_welcome;
@@ -113,9 +122,7 @@ internal struct Typed_Value shell_cmd_rdtsc(Argument_List args) {
     vga_print("\neax:");
     vga_print_hex(tsc.lower);
 
-    struct Typed_Value ret;
-    ret.type = type_void;
-    return ret;
+    RETURN_NOTHING;
 }
 
 internal struct Typed_Value shell_cmd_poke(Argument_List args) {
@@ -146,9 +153,7 @@ internal struct Typed_Value shell_cmd_read(Argument_List args) {
     u32 sector = args[1].number;
     ata_lba_read(buffer, sector, args[2].type ? args[2].number : 1);
 
-    struct Typed_Value ret;
-    ret.type = type_void;
-    return ret;
+    RETURN_NOTHING;
 }
 
 internal struct Typed_Value shell_cmd_highlight(Argument_List args) {
@@ -157,7 +162,7 @@ internal struct Typed_Value shell_cmd_highlight(Argument_List args) {
     if (args[1].type) colour = args[1].number;
     u8 attr = vga.attribute;
 
-    static u8 tag[3] = "\\c";
+    u8 tag[3] = "\\c";
     size size = str_length(message);
     i8* buffer = heap_allocate(size + size_of(tag) * 2);
 
@@ -173,23 +178,63 @@ internal struct Typed_Value shell_cmd_highlight(Argument_List args) {
     return ret;
 }
 
-Shell_Command shell_command_funcs[11] = {
-    &shell_cmd_set_colour,
-    &shell_cmd_random,
-    &shell_cmd_clear,
-    &shell_cmd_alloc,
-    &shell_cmd_free,
-    &shell_cmd_logo,
-    &shell_cmd_hello,
-    &shell_cmd_rdtsc,
-    &shell_cmd_poke,
-    &shell_cmd_read,
-    &shell_cmd_highlight,
-};
+internal struct Typed_Value shell_cmd_fs_format(Argument_List args) {
+    fs_format();
+    RETURN_NOTHING;
+}
 
-i8* shell_command_strings[11] = {
-    "colour", "random", "clear", "alloc", "free", "akerios", "hello", "rdtsc", "poke", "read", "highlight"
-};
+internal struct Typed_Value shell_cmd_fs_append(Argument_List args) {
+    u8* file = args[0].string;
+    u8* data = args[1].string;
+    size count = str_length(data);
+    fs_append_to_file(file, data, count);
+    RETURN_NOTHING;
+}
+
+internal struct Typed_Value shell_cmd_fs_create(Argument_List args) {
+    fs_create_file(args[0].string);
+    RETURN_NOTHING;
+}
+
+internal struct Typed_Value shell_cmd_fs_list(Argument_List args) {
+    vga_newline();
+    fs_list_directory();
+    RETURN_NOTHING;
+}
+
+internal struct Typed_Value shell_cmd_fs_write(Argument_List args) {
+    u8* file = args[0].string;
+    u8* data = args[1].string;
+    size count = str_length(data);
+    fs_write_entire_file(file, data, count);
+    RETURN_NOTHING;
+}
+
+internal struct Typed_Value shell_cmd_fs_read(Argument_List args) {
+    u8* file = args[0].string;
+
+    struct Typed_Value ret;
+    ret.type = type_string;
+    ret.string = fs_read_entire_file(file);
+    return ret;
+}
+
+internal struct Typed_Value shell_cmd_fs_commit(Argument_List args) {
+    fs_commit();
+    vga_print("\nCommited");
+    RETURN_NOTHING;
+}
+
+internal struct Typed_Value shell_cmd_strtok(Argument_List args) {
+    u8* ret;
+    if (args[0].type == type_string) ret = str_tokenize(args[0].string, '|');
+    else ret = str_tokenize(nullptr, '|');
+
+    struct Typed_Value value;
+    value.string = ret;
+    value.type = type_string;
+    return value;
+}
 
 enum Token_Type {
     token_name,
@@ -254,13 +299,13 @@ internal struct Token interp_next_token() {
         }
         c = interp.program[++interp.cursor];
 
-        if (!hex) while (c >= '0' && c <= '9') {
+        if (!hex) while (is_num(c)) {
             value *= 10;
             value += c - '0';
             c = interp.program[++interp.cursor];
         }
 
-        else while (c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+        else while (is_hex(c)) {
             value *= 16;
             if (c > '9') value += c - 'f' + 15;
             else value += c - '0';
@@ -273,9 +318,9 @@ internal struct Token interp_next_token() {
         return token;
     }
 
-    if (c >= 'a' && c <= 'z') {
+    if (is_alpha(c)) {
         size length = 0;
-        while (c >= 'a' && c <= 'z' || c == ':') {
+        while (is_alpha(c) || c == ':') {
             length++;
             c = interp.program[++interp.cursor];
         }
@@ -304,6 +349,17 @@ internal struct Token interp_next_token() {
         case '[': token.type = token_open_bracket;  break;
         case ']': token.type = token_close_bracket; break;
         case ',': token.type = token_comma;         break;
+        case '"': {
+            c = interp.program[++interp.cursor];
+            i8* string = heap_allocate(128);
+            for (size n = 0; c != '"'; n++) {
+                string[n] = c;
+                c = interp.program[++interp.cursor];
+            }
+            token.type = token_string;
+            token.str = string;
+            break;
+        }
         default:
             token.type = token_error;
     }
@@ -390,12 +446,17 @@ internal struct Typed_Value interp_parse_factor() {
             return value;
         }
         case token_name: {
-            for (size n = 0; n < size_of(shell_command_strings) / size_of(i8*); n++) {
-                if (str_compare(factor.str, shell_command_strings[n])) {
+            for (size n = 0; n < 19; n++) {
+                if (str_compare(factor.str, shell.command_strings[n])) {
                     struct Typed_Value* list = interp_parse_argument_list();
-                    return shell_command_funcs[n](list);
+                    return shell.command_funcs[n](list);
                 }
             }
+        }
+        case token_string: {
+            value.type = type_string;
+            value.string = factor.str;
+            return value;
         }
         default:
             vga_newline();
@@ -412,6 +473,7 @@ void interp_parse_command() {
     switch (token.type) {
     case token_line_end: return;
     case token_name:
+    case token_string:
     case token_number: {
         struct Typed_Value value = interp_parse_expression();
         if (expr_error) return;
@@ -429,12 +491,6 @@ void interp_parse_command() {
 }
 
 
-
-struct {
-    u8 command[vga_cols - 2];
-    size length;
-    u8 prompt;
-} shell;
 
 internal void shell_scroll() {
     size row = 2 * vga_cols;
@@ -500,6 +556,43 @@ internal void shell_keypress(struct Kbd_Key key) {
 }
 
 void shell_init() {
+
+    Shell_Command commands[] = {
+        &shell_cmd_set_colour,
+        &shell_cmd_random,
+        &shell_cmd_clear,
+        &shell_cmd_alloc,
+        &shell_cmd_free,
+        &shell_cmd_logo,
+        &shell_cmd_hello,
+        &shell_cmd_rdtsc,
+        &shell_cmd_poke,
+        &shell_cmd_read,
+        &shell_cmd_highlight,
+        &shell_cmd_fs_format,
+        &shell_cmd_fs_append,
+        &shell_cmd_fs_create,
+        &shell_cmd_fs_list,
+        &shell_cmd_fs_write,
+        &shell_cmd_fs_read,
+        &shell_cmd_fs_commit,
+        &shell_cmd_strtok,
+    };
+
+    i8* strings[] = {
+        "colour", "random", "clear", "alloc", "free", "akerios", "hello", "rdtsc", "poke", "read", "highlight",
+        "fs:format", "fs:append", "fs:create", "fs:list", "fs:write", "fs:read", "fs:commit",
+        "str:tok"
+    };
+
+    shell.command_strings = heap_allocate(size_of(strings));
+    mem_copy(shell.command_strings, strings, size_of(strings));
+
+    shell.command_funcs = heap_allocate(size_of(commands));
+    mem_copy(shell.command_funcs, commands, size_of(commands));
+
+    shell.command_count = size_of(commands) / size_of(Shell_Command);
+    shell.title = "Akerios Shell";
     interp.line = 0;
     interp.cursor = 0;
     shell.length = 0;

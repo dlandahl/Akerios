@@ -10,6 +10,7 @@ typedef void(*Vga_Spill_Handler)();
 
 struct {
     u8 attribute;
+    u8 back_attribute;
     u8* framebuffer;
     size cursor;
     size tab_stop;

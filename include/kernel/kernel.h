@@ -5,6 +5,7 @@
 
 size str_length(u8*);
 bool str_compare(u8*, u8*);
+u8* str_tokenize(u8*, u8);
 
 void port_write(u16, u8);
 u8   port_read(u16);
@@ -25,3 +26,5 @@ void pause(size ticks);
 u32 rand_next_int(struct Rand*);
 u32 rand_range(struct Rand*, u32, u32);
 void rand_set_seed(struct Rand*, u32);
+
+void assert(bool, u8*);
