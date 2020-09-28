@@ -6,6 +6,7 @@
 size str_length(u8*);
 bool str_compare(u8*, u8*);
 u8* str_tokenize(u8*, u8);
+bool str_startswith(u8*, u8*);
 
 void port_write(u16, u8);
 u8   port_read(u16);

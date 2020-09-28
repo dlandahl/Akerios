@@ -165,6 +165,7 @@ bool fs_append_to_file(u8* name, void* buffer, i32 count) {
         read_block_from_disk(cast(union Block*, data), entry);
         mem_copy(data + fs_blocksize - residue, buffer, bytes_to_write);
         write_block_to_disk(cast(union Block*, data), entry);
+        heap_deallocate(data);
 
         buffer += bytes_to_write;
         count -= bytes_to_write;
@@ -174,6 +175,21 @@ bool fs_append_to_file(u8* name, void* buffer, i32 count) {
 
     // write_data(entry, buffer, count);
     // file->size += count;
+}
+
+void fs_create_dir(u8* name) {
+    Fat_Entry index = get_free_fat_entry();
+    fat.entries[index] = fat_end_of_chain;
+
+    for (size dir_entry = 0; dir_entry < dir_entry_count; dir_entry++) {
+        struct Dir_Entry* entry = &root.entries[dir_entry];
+        if (entry->index == fat_unused) {
+            mem_copy(entry->name, name, str_length(name));
+            entry->index = index;
+            entry->is_dir = true;
+            break;
+        }
+    }
 }
 
 void fs_create_file(u8* name) {
@@ -192,7 +208,6 @@ void fs_create_file(u8* name) {
 }
 
 Ata_Error fs_format() {
-    struct Fat_Block fat;
     mem_clear(&fat,  fs_blocksize);
 
     fat.entries[0] = fat_fat;
@@ -201,12 +216,10 @@ Ata_Error fs_format() {
     Ata_Error err = 0;
     err |= write_block_to_disk(cast(union Block*, &fat), 0);
 
-    struct Dir_Block root;
     mem_clear(&root, fs_blocksize);
 
     err |= write_block_to_disk(cast(union Block*, &root), 1);
 
-    fs_init();
     return err;
 }
 

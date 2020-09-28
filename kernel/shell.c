@@ -15,6 +15,7 @@ enum Data_Type {
 
 struct Typed_Value {
     enum Data_Type type;
+    bool dealloc_flag;
     union {
         u8* string;
         u32 number;
@@ -162,19 +163,21 @@ internal struct Typed_Value shell_cmd_highlight(Argument_List args) {
     if (args[1].type) colour = args[1].number;
     u8 attr = vga.attribute;
 
-    u8 tag[3] = "\\c";
+    u8 tag[4] = "\\c";
     size size = str_length(message);
     i8* buffer = heap_allocate(size + size_of(tag) * 2);
 
-    tag[2] = (vga.attribute & 0xf0) + (colour & 0xf);
+    tag[3] = (vga.attribute & 0xf0) + (colour & 0xf);
     mem_copy(buffer, tag, size_of(tag));
     mem_copy(buffer + size_of(tag), message, size);
     tag[2] = vga.attribute;
     mem_copy(buffer + size_of(tag) + size, tag, size_of(tag));
 
+    heap_deallocate(message);
     struct Typed_Value ret;
     ret.type = type_string;
     ret.string = buffer;
+    ret.dealloc_flag = true;
     return ret;
 }
 
@@ -216,16 +219,23 @@ internal struct Typed_Value shell_cmd_fs_read(Argument_List args) {
     struct Typed_Value ret;
     ret.type = type_string;
     ret.string = fs_read_entire_file(file);
+    ret.dealloc_flag = true;
     return ret;
 }
 
 internal struct Typed_Value shell_cmd_fs_commit(Argument_List args) {
     fs_commit();
-    vga_print("\nCommited");
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_strtok(Argument_List args) {
+internal struct Typed_Value shell_cmd_str_len(Argument_List args) {
+    struct Typed_Value value;
+    value.number = str_length(args[0].string);
+    value.type = type_number;
+    return value;
+}
+
+internal struct Typed_Value shell_cmd_str_tok(Argument_List args) {
     u8* ret;
     if (args[0].type == type_string) ret = str_tokenize(args[0].string, '|');
     else ret = str_tokenize(nullptr, '|');
@@ -446,12 +456,15 @@ internal struct Typed_Value interp_parse_factor() {
             return value;
         }
         case token_name: {
-            for (size n = 0; n < 19; n++) {
+            for (size n = 0; n < 20; n++) {
                 if (str_compare(factor.str, shell.command_strings[n])) {
                     struct Typed_Value* list = interp_parse_argument_list();
+                    heap_deallocate(factor.str);
                     return shell.command_funcs[n](list);
                 }
             }
+            heap_deallocate(factor.str);
+            break;
         }
         case token_string: {
             value.type = type_string;
@@ -465,7 +478,7 @@ internal struct Typed_Value interp_parse_factor() {
     return value;
 }
 
-void interp_parse_command() {
+internal void interp_parse_command() {
     interp.line++;
     interp.cursor = 0;
     struct Token token = interp_peek_token();
@@ -483,6 +496,7 @@ void interp_parse_command() {
             case type_void: break;
         }
         break;
+        if (value.string && value.dealloc_flag) heap_deallocate(value.string);
     }
     default:
         vga_newline();
@@ -503,6 +517,8 @@ internal void shell_scroll() {
 }
 
 internal void shell_submit_command() {
+    // fs_append_to_file("history", shell.command, shell.length);
+    // fs_append_to_file("history", "\n", 1);
     interp.program = shell.command;
     interp_parse_command();
 
@@ -531,6 +547,28 @@ internal void shell_keypress(struct Kbd_Key key) {
             vga_print_char(' ');
             vga_move_cursor(vga.cursor);
             shell.length = 0;
+            return;
+        }
+        if (key.ascii == '\t') {
+            size start = shell.length - 1;
+            while (is_alpha(shell.command[start]) || shell.command[start] == ':') start--;
+            start++;
+
+            for (size n = 0; n < 19; n++) {
+                if (str_startswith(shell.command_strings[n], shell.command + start)) {
+                    vga.cursor -= shell.length - start;
+                    shell.length -= shell.length - start;
+                    u8* command = shell.command_strings[n];
+
+                    struct Kbd_Key fake_key;
+                    mem_clear(&fake_key, size_of(struct Kbd_Key));
+                    for (size c = 0; c < str_length(command); c++) {
+                        fake_key.ascii = command[c];
+                        shell_keypress(fake_key);
+                    }
+                    break;
+                }
+            }
             return;
         }
 
@@ -576,13 +614,14 @@ void shell_init() {
         &shell_cmd_fs_write,
         &shell_cmd_fs_read,
         &shell_cmd_fs_commit,
-        &shell_cmd_strtok,
+        &shell_cmd_str_tok,
+        &shell_cmd_str_len,
     };
 
     i8* strings[] = {
         "colour", "random", "clear", "alloc", "free", "akerios", "hello", "rdtsc", "poke", "read", "highlight",
         "fs:format", "fs:append", "fs:create", "fs:list", "fs:write", "fs:read", "fs:commit",
-        "str:tok"
+        "str:tok", "str:len"
     };
 
     shell.command_strings = heap_allocate(size_of(strings));

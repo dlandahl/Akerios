@@ -46,7 +46,10 @@ u8* str_tokenize(u8* string, u8 delim) {
     return state + start;
 }
 
-
+bool str_startswith(u8* string, u8* start) {
+    size bytes = str_length(start);
+    return !mem_compare(string, start, bytes);
+}
 
 void port_write(u16 port, u8 value) {
     asm("out dx, al" :: "a"(value), "d"(port));
@@ -161,9 +164,12 @@ void shell_test() {
     heap_init();
     vga_init();
     vga.attribute = 0x08;
+    vga.tab_stop = 12;
     idt_init();
     pic_init();
+    vga_clear();
     fs_init();
+    // fs_init();
     // vga_hide_cursor();
 
     // idt_add_entry(&isr_timer, 0x20);
@@ -229,18 +235,5 @@ void filesystem_test() {
 }
 
 void kernel_entry() {
-    heap_init();
-    vga_init();
-    vga_clear();
-
-    fs_format();
-    fs_create_file("Test");
-    fs_write_entire_file("Test", "YaaAAAY", 7);
-    fs_append_to_file("Test", "\nSOME TEXT", 8);
-    fs_list_directory();
-    u8* file = fs_read_entire_file("Test");
-    vga_print(file);
-    heap_deallocate(file);
-    fs_commit();
-    while (true);
+    shell_test();
 }

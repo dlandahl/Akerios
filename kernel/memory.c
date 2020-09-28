@@ -91,4 +91,5 @@ i32 mem_compare(void* a, void* b, size bytes) {
         if (diff >  0) return  1;
         return -1;
     }
+    return 0;
 }

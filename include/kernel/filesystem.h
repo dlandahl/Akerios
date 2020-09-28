@@ -12,6 +12,7 @@ bool fs_write_entire_file(u8*, void*, size);
 void* fs_read_entire_file(u8*);
 bool fs_append_to_file(u8*, void*, i32);
 void fs_create_file(u8*);
+void fs_create_dir(u8*);
 u8 fs_format();
 void fs_init();
 void fs_commit();

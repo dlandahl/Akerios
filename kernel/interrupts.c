@@ -207,6 +207,7 @@ void idt_init() {
 }
 
 void interrupt_print_frame(struct Interrupt_Frame* frame) {
+    vga.tab_stop = 4;
     vga_print("\t|IP: ");
     vga_print_hex(frame->ip);
     vga_print("|\t\t");
