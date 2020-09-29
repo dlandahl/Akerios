@@ -3,6 +3,7 @@
 #include "kernel/memory.h"
 #include "kernel/interrupts.h"
 #include "kernel/filesystem.h"
+#include "kernel/term.h"
 #include "drivers/vga.h"
 #include "drivers/keyboard.h"
 #include "drivers/ata.h"
@@ -23,38 +24,27 @@ struct Typed_Value {
 };
 
 typedef struct Typed_Value Argument_List[8];
-typedef struct Typed_Value(*Shell_Command)(Argument_List);
+typedef struct Typed_Value(*Term_Command)(Argument_List);
 
 struct {
     u8 command[vga_cols - 2];
     size length;
     u8 prompt;
-    u8* title;
+    bool quit;
 
-    Shell_Command* command_funcs;
+    Term_Command* command_funcs;
     i8** command_strings;
     size command_count;
-} shell;
+} term;
 
-internal void clear_screen() {
-    vga_clear();
-
-    vga_print("===[ ");
-    vga_print(shell.title);
-    vga_print(" ]");
-    for (int n = 0; n < vga_cols - 7 - str_length(shell.title); n++) {
-        vga_print_char('=');
-    }
-}
-
-internal bool shell_type_check_argument_list(Argument_List, Argument_List);
+internal bool term_type_check_argument_list(Argument_List, Argument_List);
 
 #define RETURN_NOTHING       \
     struct Typed_Value ret;  \
     ret.type = type_void;    \
     return ret               \
 
-internal struct Typed_Value shell_cmd_set_colour(Argument_List args) {
+internal struct Typed_Value term_cmd_set_colour(Argument_List args) {
     if (args[0].type) vga.attribute = args[0].number;
 
     struct Typed_Value ret;
@@ -63,12 +53,12 @@ internal struct Typed_Value shell_cmd_set_colour(Argument_List args) {
     return ret;
 }
 
-internal struct Typed_Value shell_cmd_clear(Argument_List args) {
+internal struct Typed_Value term_cmd_clear(Argument_List args) {
     clear_screen();
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_random(Argument_List args) {
+internal struct Typed_Value term_cmd_random(Argument_List args) {
     static struct Rand rand;
     rand.state = rdtsc().lower;
 
@@ -80,42 +70,50 @@ internal struct Typed_Value shell_cmd_random(Argument_List args) {
     return ret;
 }
 
-internal struct Typed_Value shell_cmd_alloc(Argument_List args) {
+internal struct Typed_Value term_cmd_alloc(Argument_List args) {
     struct Typed_Value ret;
     ret.type = type_number;
     if (args[0].type) ret.number = (u32) heap_allocate(args[0].number);
     return ret;
 }
 
-internal struct Typed_Value shell_cmd_free(Argument_List args) {
+internal struct Typed_Value term_cmd_free(Argument_List args) {
     if (args[0].type) heap_deallocate((void*) args[0].number);
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_logo(Argument_List args) {
+internal struct Typed_Value term_cmd_quit(Argument_List args) {
+    // akerios_current_mode = akerios_nothing_mode;
+    clear_screen();
+    term.quit = true;
+    vga_hide_cursor();
+    RETURN_NOTHING;
+}
+
+internal struct Typed_Value term_cmd_logo(Argument_List args) {
     u8* msg_welcome =
-"\n  /%%%%%%  /%%                           /%%  /%%%%%%   /%%%%%% \n"
+"\n\\i  /%%%%%%  /%%                           /%%  /%%%%%%   /%%%%%% \n"
 " /%%__  %%| %%                          |__/ /%%__  %% /%%__  %%\n"
 "| %%  \\ %%| %%   /%%  /%%%%%%   /%%%%%%  /%%| %%  \\ %%| %%  \\__/\n"
 "| %%%%%%%%| %%  /%%/ /%%__  %% /%%__  %%| %%| %%  | %%|  %%%%%% \n"
 "| %%__  %%| %%%%%%/ | %%%%%%%%| %%  \\__/| %%| %%  | %% \\____  %%\n"
 "| %%  | %%| %%_  %% | %%_____/| %%      | %%| %%  | %% /%%  \\ %%\n"
 "| %%  | %%| %% \\  %%|  %%%%%%%| %%      | %%|  %%%%%%/|  %%%%%%/\n"
-"|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/";
+"|__/  |__/|__/  \\__/ \\_______/|__/      |__/ \\______/  \\______/ \\i";
     struct Typed_Value ret;
     ret.type = type_string;
     ret.string = msg_welcome;
     return ret;
 }
 
-internal struct Typed_Value shell_cmd_hello(Argument_List args) {
+internal struct Typed_Value term_cmd_hello(Argument_List args) {
     struct Typed_Value ret;
     ret.type = type_string;
     ret.string = "Hello World";
     return ret;
 }
 
-internal struct Typed_Value shell_cmd_rdtsc(Argument_List args) {
+internal struct Typed_Value term_cmd_rdtsc(Argument_List args) {
     vga_newline();
     struct u64 tsc = rdtsc();
     vga_print("edx:");
@@ -126,7 +124,7 @@ internal struct Typed_Value shell_cmd_rdtsc(Argument_List args) {
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_poke(Argument_List args) {
+internal struct Typed_Value term_cmd_poke(Argument_List args) {
     size size = 1;
     if (args[2].type == type_number) size = args[2].number;
     void* target = cast(void*, args[0].number);
@@ -149,7 +147,7 @@ internal struct Typed_Value shell_cmd_poke(Argument_List args) {
     return ret;
 }
 
-internal struct Typed_Value shell_cmd_read(Argument_List args) {
+internal struct Typed_Value term_cmd_read(Argument_List args) {
     void* buffer = cast(void*, args[0].number);
     u32 sector = args[1].number;
     ata_lba_read(buffer, sector, args[2].type ? args[2].number : 1);
@@ -157,7 +155,7 @@ internal struct Typed_Value shell_cmd_read(Argument_List args) {
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_highlight(Argument_List args) {
+internal struct Typed_Value term_cmd_highlight(Argument_List args) {
     i8* message = args[0].string;
     u32 colour = vga_red;
     if (args[1].type) colour = args[1].number;
@@ -181,12 +179,13 @@ internal struct Typed_Value shell_cmd_highlight(Argument_List args) {
     return ret;
 }
 
-internal struct Typed_Value shell_cmd_fs_format(Argument_List args) {
+internal struct Typed_Value term_cmd_fs_format(Argument_List args) {
     fs_format();
+    fs_create_file("history");
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_fs_append(Argument_List args) {
+internal struct Typed_Value term_cmd_fs_append(Argument_List args) {
     u8* file = args[0].string;
     u8* data = args[1].string;
     size count = str_length(data);
@@ -194,18 +193,18 @@ internal struct Typed_Value shell_cmd_fs_append(Argument_List args) {
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_fs_create(Argument_List args) {
+internal struct Typed_Value term_cmd_fs_create(Argument_List args) {
     fs_create_file(args[0].string);
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_fs_list(Argument_List args) {
+internal struct Typed_Value term_cmd_fs_list(Argument_List args) {
     vga_newline();
     fs_list_directory();
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_fs_write(Argument_List args) {
+internal struct Typed_Value term_cmd_fs_write(Argument_List args) {
     u8* file = args[0].string;
     u8* data = args[1].string;
     size count = str_length(data);
@@ -213,7 +212,7 @@ internal struct Typed_Value shell_cmd_fs_write(Argument_List args) {
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_fs_read(Argument_List args) {
+internal struct Typed_Value term_cmd_fs_read(Argument_List args) {
     u8* file = args[0].string;
 
     struct Typed_Value ret;
@@ -223,19 +222,19 @@ internal struct Typed_Value shell_cmd_fs_read(Argument_List args) {
     return ret;
 }
 
-internal struct Typed_Value shell_cmd_fs_commit(Argument_List args) {
+internal struct Typed_Value term_cmd_fs_commit(Argument_List args) {
     fs_commit();
     RETURN_NOTHING;
 }
 
-internal struct Typed_Value shell_cmd_str_len(Argument_List args) {
+internal struct Typed_Value term_cmd_str_len(Argument_List args) {
     struct Typed_Value value;
     value.number = str_length(args[0].string);
     value.type = type_number;
     return value;
 }
 
-internal struct Typed_Value shell_cmd_str_tok(Argument_List args) {
+internal struct Typed_Value term_cmd_str_tok(Argument_List args) {
     u8* ret;
     if (args[0].type == type_string) ret = str_tokenize(args[0].string, '|');
     else ret = str_tokenize(nullptr, '|');
@@ -457,10 +456,10 @@ internal struct Typed_Value interp_parse_factor() {
         }
         case token_name: {
             for (size n = 0; n < 20; n++) {
-                if (str_compare(factor.str, shell.command_strings[n])) {
+                if (str_compare(factor.str, term.command_strings[n])) {
                     struct Typed_Value* list = interp_parse_argument_list();
                     heap_deallocate(factor.str);
-                    return shell.command_funcs[n](list);
+                    return term.command_funcs[n](list);
                 }
             }
             heap_deallocate(factor.str);
@@ -506,7 +505,7 @@ internal void interp_parse_command() {
 
 
 
-internal void shell_scroll() {
+internal void term_scroll() {
     size row = 2 * vga_cols;
     mem_move(vga.framebuffer + row,
              vga.framebuffer + row + row,
@@ -516,55 +515,61 @@ internal void shell_scroll() {
     vga.cursor -= vga_cols;
 }
 
-internal void shell_submit_command() {
-    // fs_append_to_file("history", shell.command, shell.length);
-    // fs_append_to_file("history", "\n", 1);
-    interp.program = shell.command;
+internal void term_submit_command() {
+    fs_append_to_file("history", term.command, term.length);
+    fs_append_to_file("history", "\n", 1);
+    interp.program = term.command;
     interp_parse_command();
 
-    shell.length = 0;
+    term.length = 0;
     vga_newline();
 
+    if (term.quit) {
+        term.quit = false;
+        return;
+    }
+
     vga_move_cursor(vga.cursor);
-    vga_print_char(shell.prompt);
+    vga_print_char(term.prompt);
     vga_print_char(' ');
     vga_move_cursor(vga.cursor);
 
-    for (size n = 0; n < sizeof(shell.command); n++) {
-        shell.command[n] = 0;
+    for (size n = 0; n < sizeof(term.command); n++) {
+        term.command[n] = 0;
     }
 }
 
-internal void shell_keypress(struct Kbd_Key key) {
+internal void term_keypress(struct Kbd_Key* key_ptr) {
+    struct Kbd_Key key = *key_ptr;
     if (key.is_release) return;
 
     if (key.ascii) {
-        if (shell.length > 65) return;
+        if (term.length > 65) return;
         if (key.ascii == 'c' && key.ctrl) {
             vga_print("^C");
             vga_newline();
-            vga_print_char(shell.prompt);
+            vga_print_char(term.prompt);
             vga_print_char(' ');
             vga_move_cursor(vga.cursor);
-            shell.length = 0;
+            term.length = 0;
             return;
         }
         if (key.ascii == '\t') {
-            size start = shell.length - 1;
-            while (is_alpha(shell.command[start]) || shell.command[start] == ':') start--;
+            size start = term.length - 1;
+            while (is_alpha(term.command[start]) || term.command[start] == ':') start--;
             start++;
 
             for (size n = 0; n < 19; n++) {
-                if (str_startswith(shell.command_strings[n], shell.command + start)) {
-                    vga.cursor -= shell.length - start;
-                    shell.length -= shell.length - start;
-                    u8* command = shell.command_strings[n];
+                if (str_startswith(term.command_strings[n], term.command + start)) {
+                    vga.cursor -= term.length - start;
+                    term.length -= term.length - start;
+                    u8* command = term.command_strings[n];
 
                     struct Kbd_Key fake_key;
                     mem_clear(&fake_key, size_of(struct Kbd_Key));
                     for (size c = 0; c < str_length(command); c++) {
                         fake_key.ascii = command[c];
-                        shell_keypress(fake_key);
+                        term_keypress(&fake_key);
                     }
                     break;
                 }
@@ -573,7 +578,7 @@ internal void shell_keypress(struct Kbd_Key key) {
         }
 
         vga_print_char(key.ascii);
-        shell.command[shell.length++] = key.ascii;
+        term.command[term.length++] = key.ascii;
         vga_move_cursor(vga.cursor);
     }
 
@@ -583,64 +588,73 @@ internal void shell_keypress(struct Kbd_Key key) {
             vga.cursor--;
             vga_print_char(' ');
             vga.cursor--;
-            shell.length--;
-            shell.command[shell.length] = 0;
+            term.length--;
+            term.command[term.length] = 0;
             vga_move_cursor(vga.cursor);
             break;
         case key_enter:
-            shell_submit_command();
+            term_submit_command();
     }
     return;
 }
 
-void shell_init() {
+struct Akerios_Mode term_mode;
+void term_init() {
 
-    Shell_Command commands[] = {
-        &shell_cmd_set_colour,
-        &shell_cmd_random,
-        &shell_cmd_clear,
-        &shell_cmd_alloc,
-        &shell_cmd_free,
-        &shell_cmd_logo,
-        &shell_cmd_hello,
-        &shell_cmd_rdtsc,
-        &shell_cmd_poke,
-        &shell_cmd_read,
-        &shell_cmd_highlight,
-        &shell_cmd_fs_format,
-        &shell_cmd_fs_append,
-        &shell_cmd_fs_create,
-        &shell_cmd_fs_list,
-        &shell_cmd_fs_write,
-        &shell_cmd_fs_read,
-        &shell_cmd_fs_commit,
-        &shell_cmd_str_tok,
-        &shell_cmd_str_len,
+    Term_Command commands[] = {
+        &term_cmd_set_colour,
+        &term_cmd_random,
+        &term_cmd_clear,
+        &term_cmd_alloc,
+        &term_cmd_free,
+        &term_cmd_logo,
+        &term_cmd_hello,
+        &term_cmd_rdtsc,
+        &term_cmd_poke,
+        &term_cmd_read,
+        &term_cmd_highlight,
+        &term_cmd_quit,
+        &term_cmd_fs_format,
+        &term_cmd_fs_append,
+        &term_cmd_fs_create,
+        &term_cmd_fs_list,
+        &term_cmd_fs_write,
+        &term_cmd_fs_read,
+        &term_cmd_fs_commit,
+        &term_cmd_str_tok,
+        &term_cmd_str_len,
     };
 
     i8* strings[] = {
-        "colour", "random", "clear", "alloc", "free", "akerios", "hello", "rdtsc", "poke", "read", "highlight",
+        "colour", "random", "clear", "alloc", "free", "akerios", "hello", "rdtsc", "poke", "read", "highlight", "quit",
         "fs:format", "fs:append", "fs:create", "fs:list", "fs:write", "fs:read", "fs:commit",
         "str:tok", "str:len"
     };
 
-    shell.command_strings = heap_allocate(size_of(strings));
-    mem_copy(shell.command_strings, strings, size_of(strings));
+    term.command_strings = heap_allocate(size_of(strings));
+    mem_copy(term.command_strings, strings, size_of(strings));
 
-    shell.command_funcs = heap_allocate(size_of(commands));
-    mem_copy(shell.command_funcs, commands, size_of(commands));
+    term.command_funcs = heap_allocate(size_of(commands));
+    mem_copy(term.command_funcs, commands, size_of(commands));
 
-    shell.command_count = size_of(commands) / size_of(Shell_Command);
-    shell.title = "Akerios Shell";
+    term.command_count = size_of(commands) / size_of(Term_Command);
+
+    term_mode.title = "Akerios Term";
+    term_mode.key_handler = &term_keypress;
+    term_mode.scroll_handler = &term_scroll;
+    vga.spill_handler = &term_scroll;
+    akerios_current_mode = term_mode;
+}
+
+void term_start() {
     interp.line = 0;
     interp.cursor = 0;
-    shell.length = 0;
-    shell.prompt = 0xe4;
-    kbd_set_handler(&shell_keypress);
+    term.length = 0;
+    term.prompt = 0xe4;
     clear_screen();
 
-    vga_print_char(shell.prompt);
+    vga_print_char(term.prompt);
     vga_print_char(' ');
     vga_move_cursor(vga.cursor);
-    vga_set_spill_handler(&shell_scroll);
+    term.quit = false;
 }

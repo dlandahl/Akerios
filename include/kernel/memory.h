@@ -8,6 +8,7 @@ struct Heap_Header;
 void heap_init();
 void* heap_allocate(size);
 void heap_deallocate(void*);
+void heap_enumerate_headers();
 
 #define heap_allocate_typed(Type, count) \
     (Type*) heap_allocate((count) * size_of(Type));

@@ -23,7 +23,7 @@ struct Kbd_Key {
     u8 ascii;
 };
 
-typedef void(*Kbd_Handler)(struct Kbd_Key) ;
+typedef void(*Kbd_Handler)(struct Kbd_Key*) ;
 
 void kbd_init();
 void kbd_set_handler(Kbd_Handler);

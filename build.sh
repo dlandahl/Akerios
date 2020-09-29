@@ -4,7 +4,7 @@ nasm -f bin boot/bootsector.asm -o bootsector.bin
 nasm -f elf boot/kernel_entry.asm -o 0kernel_entry.o
 
 printf "\n == Compiling kernel == \n"
-./i686-elf-tools-linux/bin/i686-elf-gcc -ffreestanding -masm=intel -mno-80387 \
+./i686-elf-tools-linux/bin/i686-elf-gcc -ffreestanding -masm=intel -mgeneral-regs-only \
     -c kernel/*.c drivers/*.c -I include -march=i386
 
 printf "\n == Linking kernel == \n"

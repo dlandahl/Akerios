@@ -38,9 +38,11 @@ void* heap_allocate(size bytes) {
             return get_found_block(current, bytes);
         }
 
-        const size block_size = cast(void*, current->next_header)
-                              - cast(void*, current);
-        if (block_size - size_of(struct Heap_Header) >= bytes) {
+        size block_size = cast(i32, current->next_header)
+                        - cast(i32, current)
+                        - size_of(struct Heap_Header) * 2;
+
+        if (block_size >= bytes) {
             return get_found_block(current, bytes);
         }
         else current = current->next_header;
@@ -50,9 +52,26 @@ void* heap_allocate(size bytes) {
 void heap_deallocate(void* block) {
     struct Heap_Header* header = cast(void*, block) - size_of(struct Heap_Header);
     header->free = true;
-    while (header->next_header && header->next_header->free) {
-        header->next_header = header->next_header->next_header;
-    }
+    // while (header->next_header && header->next_header->free) {
+    //     header->next_header = header->next_header->next_header;
+    // }
+}
+
+void heap_enumerate_headers() {
+    struct Heap_Header* current = heap_first_header;
+    do {
+        vga_print("Current: ");
+        vga_print_hex((u32) current);
+        vga_print(" | Next: ");
+        vga_print_hex((u32) current->next_header);
+        vga_print(" | Size: ");
+        vga_print_hex(cast(void*, current->next_header)
+                    - cast(void*, current) - size_of(struct Heap_Header));
+        vga_print(" | Free: ");
+        vga_print(current->free ? "TRUE" : "FALSE");
+        vga_newline();
+        current = current->next_header;
+    } while (current->next_header);
 }
 
 

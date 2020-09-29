@@ -5,7 +5,6 @@
 
 #define vga_cols 80
 #define vga_rows 25
-
 typedef void(*Vga_Spill_Handler)();
 
 struct {

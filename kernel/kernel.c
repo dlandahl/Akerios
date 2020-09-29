@@ -2,7 +2,7 @@
 #include "kernel/kernel.h"
 #include "kernel/memory.h"
 #include "kernel/interrupts.h"
-#include "kernel/shell.h"
+#include "kernel/term.h"
 #include "kernel/filesystem.h"
 #include "drivers/keyboard.h"
 #include "drivers/vga.h"
@@ -129,7 +129,7 @@ void rand_set_seed(struct Rand* rand, u32 seed) {
 
 
 
-void timer_kbd_void(struct Kbd_Key key) {
+void timer_kbd_void(struct Kbd_Key* key) {
     return;
 }
 
@@ -160,7 +160,18 @@ void assert(bool condition, u8* message) {
     }
 }
 
-void shell_test() {
+void clear_screen() {
+    vga_clear();
+
+    vga_print("===[ ");
+    vga_print(akerios_current_mode.title);
+    vga_print(" ]");
+    for (int n = 0; n < vga_cols - 7 - str_length(akerios_current_mode.title); n++) {
+        vga_print_char('=');
+    }
+}
+
+void term_test() {
     heap_init();
     vga_init();
     vga.attribute = 0x08;
@@ -176,7 +187,7 @@ void shell_test() {
     // pic_mask(irq_time, true);
 
     kbd_init();
-    shell_init();
+    term_init();
 
     // vga_clear();
     // vga_print("Hello!");
@@ -187,6 +198,7 @@ void shell_test() {
     // u16* a = heap_allocate_typed(u16, 1);
     // int* b = heap_allocate_typed(int, 32);
     // vga_print_hex(cast(int, b));
+    term_start();
     while (true);
 }
 
@@ -235,5 +247,5 @@ void filesystem_test() {
 }
 
 void kernel_entry() {
-    shell_test();
+    term_test();
 }

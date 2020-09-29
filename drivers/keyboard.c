@@ -77,7 +77,7 @@ internal void kbd_isr(struct Interrupt_Frame* frame) {
     key.shift = kbd_state.shift;
     key.ctrl  = kbd_state.ctrl;
 
-    if (kbd_state.handler) kbd_state.handler(key);
+    if (akerios_current_mode.key_handler) akerios_current_mode.key_handler(&key);
     pic_send_eoi(irq_kbd);
     asm("sti");
     return;
